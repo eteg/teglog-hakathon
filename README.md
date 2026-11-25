@@ -1,10 +1,10 @@
 # Reporta
 
-Next.js 16 rodando em **Cloudflare Workers** (via [OpenNext](https://opennext.js.org/cloudflare)) com banco **Cloudflare D1** (SQLite) acessado por **Drizzle ORM**.
+Next.js 16 rodando em **Cloudflare Workers** (via [OpenNext](https://opennext.js.org/cloudflare)) com banco **Cloudflare D1** (SQLite) acessado por **Drizzle ORM** e arquivos no **Cloudflare R2**.
 
 ## Ambientes
 
-Um único ambiente na Cloudflare (Worker `reporta`, D1 `reporta`), publicado a cada push na `main`. Localmente o D1 é emulado (miniflare, em `.wrangler/`). Tudo é definido em [wrangler.jsonc](wrangler.jsonc); o binding do banco é `DB`.
+Um único ambiente na Cloudflare (Worker `reporta`, D1 `reporta`, bucket R2 `reporta`), publicado a cada push na `main`. Localmente D1 e R2 são emulados (miniflare, em `.wrangler/`). Tudo é definido em [wrangler.jsonc](wrangler.jsonc); os bindings são `DB` (banco) e `BUCKET` (arquivos).
 
 ## Desenvolvimento local
 
@@ -42,6 +42,26 @@ const db = await getDb();
 const rows = await db.select().from(reports);
 ```
 
+## Arquivos (R2)
+
+- Client: `getBucket()` em [lib/storage.ts](lib/storage.ts) (apenas server-side)
+- Upload: `POST /api/files` (multipart, campo `file`, até 10 MB) → `{ key, url }`
+- Download: `GET /api/files/<key>`
+
+```bash
+curl -F file=@foto.jpg http://localhost:3000/api/files
+```
+
+```ts
+import { getBucket } from "@/lib/storage";
+
+const bucket = await getBucket();
+await bucket.put("uploads/a.txt", "conteúdo");
+const obj = await bucket.get("uploads/a.txt");
+```
+
+Guarde a `key` no D1 (ex.: coluna `attachment_key` em `reports`) para vincular o arquivo ao registro.
+
 Após mudar bindings/vars no `wrangler.jsonc`, rode `npm run cf-typegen` para atualizar [cloudflare-env.d.ts](cloudflare-env.d.ts).
 
 ## CI/CD (GitHub Actions)
@@ -57,9 +77,14 @@ Após mudar bindings/vars no `wrangler.jsonc`, rode `npm run cf-typegen` para at
    ```
    Copie o `database_id` para o `wrangler.jsonc` (no lugar de `REPLACE_WITH_D1_ID`) e commite.
 
-2. **Criar um API token** na Cloudflare (*My Profile → API Tokens → Create Token*, template **Edit Cloudflare Workers** + permissão **Account → D1 → Edit**).
+2. **Criar o bucket R2** (habilite o R2 antes em *Dashboard → R2 Object Storage*):
+   ```bash
+   npx wrangler r2 bucket create reporta
+   ```
 
-3. **No GitHub** (*Settings → Secrets and variables → Actions*):
+3. **Criar um API token** na Cloudflare (*My Profile → API Tokens → Create Token*, template **Edit Cloudflare Workers** + permissões **Account → D1 → Edit** e **Account → Workers R2 Storage → Edit**).
+
+4. **No GitHub** (*Settings → Secrets and variables → Actions*):
    - Secrets: `CLOUDFLARE_API_TOKEN`, `CLOUDFLARE_ACCOUNT_ID`.
    - Variable opcional `APP_URL` (ex.: `https://reporta.<subdominio>.workers.dev`) para habilitar o smoke test.
 
