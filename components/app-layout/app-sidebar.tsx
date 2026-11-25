@@ -46,7 +46,7 @@ function SidebarToggleButton() {
 export function AppSidebar() {
   const pathname = usePathname()
   return (
-    <ShadcnSidebar collapsible="icon" className="top-[60px]! h-[calc(100svh-60px)]! overflow-x-hidden">
+    <ShadcnSidebar collapsible="icon" mobileSheet={false} className="top-[60px]! h-[calc(100svh-60px)]! overflow-x-hidden">
       <SidebarHeader className="p-4 pb-0">
         <SidebarToggleButton />
       </SidebarHeader>

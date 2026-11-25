@@ -4,7 +4,7 @@ import 'server-only'
 
 import { padroes } from '@/db/schema'
 import { getDb } from '@/lib/db'
-import { custoOcorrencia, ROTULO_TIPO } from './regras'
+import { custoOcorrencia, rotuloSubtipo, ROTULO_TIPO } from './regras'
 import { listar } from './store'
 import type { TipoOcorrencia } from './types'
 
@@ -39,7 +39,7 @@ export async function listarPadroes(): Promise<GrupoPadrao[]> {
         tipo: c.tipo,
         subtipo: c.subtipo,
         nome: nomePorChave.get(chave),
-        sugestao: `${ROTULO_TIPO[c.tipo]}: ${c.subtipo.replace(/_/g, ' ')}`,
+        sugestao: `${ROTULO_TIPO[c.tipo]}: ${rotuloSubtipo(c.subtipo).toLowerCase()}`,
         quantidade: 0,
         custo: 0,
         emergente: false,
