@@ -19,6 +19,14 @@ Tarefas marcadas com ✂ são as cortáveis, na ordem de corte do plano: webhook
 | T05 | Pendente | Depende de quem cuida do ezworker |
 | T06 | Feito com os padrões do plano | `lib/rules/config.ts`. Confiança mínima passou de 0,7 (código antigo) para 0,75 (plano); confirmar com o time |
 | T15 | Adiantado | `lib/graph/d1-checkpointer.ts`, necessário para o T01 |
+| T07 | Feito | `npm run db:seed:local`: 14.644 entregas, 632 ocorrências; padrão "caixa molhada" em São Paulo → Curitiba com a Beta (26 relatos antes de setembro, 3 depois); recusas à noite 61,9 por mil contra 2,6 de dia |
+| T08 | Feito | `POST /api/simulator/message`; mensagens do mesmo telefone em 60 s viram um relato; mídia no R2 com SHA-256 |
+| T09 | Feito | `POST /api/webhooks/transcription` (exige `TRANSCRIPTION_WEBHOOK_SECRET`) e `POST /api/simulator/transcription`; não sobrescreve transcrição já recebida |
+| T10 | Feito | `lib/ai/call-model.ts` grava `model_calls`; `lib/observability/tracer.ts` grava `node_runs` |
+| T11 | Feito | Regras em `lib/rules/` com 32 testes; `npm test` no CI e no deploy. `lib/regras.ts` (código antigo) ainda não delega: fica para quando as telas usarem as tabelas novas |
+| T12 | Feito, falta teste com o modelo real | Grafo completo testado com portas falsas (3 testes) e de ponta a ponta no D1 local; sem `ANTHROPIC_API_KEY` a extração falha duas vezes e o caso vai para revisão, como previsto |
+| T13 | Feito | `GET /api/kpis` (sempre por volume de entregas) e `GET /api/incidents` |
+| T14 | Bloqueado por decisão | F1 usa base fixa em memória e F2 lista a tabela antiga `casos`; ligar às tabelas novas mexe nas telas do colega |
 
 ---
 

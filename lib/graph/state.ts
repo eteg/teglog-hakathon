@@ -72,10 +72,16 @@ const append = <T>() => Annotation<T[]>({ reducer: (a, b) => a.concat(b), defaul
 
 export const IncidentState = Annotation.Root({
   reportId: Annotation<string>(),
+  phone: replace<string>(() => ""),
+  /** When the report was opened (ISO); used for the claim deadline. */
+  reportedAt: replace<string>(() => ""),
   messages: replace<ReportMessage[]>(() => []),
   /** Text sent to the model, after mask_pii. */
   maskedText: replace<string>(() => ""),
   piiMap: replace<PiiMap>(() => ({})),
+  /** Raw model answer, before validate_schema. */
+  rawExtraction: replace<string | null>(() => null),
+  lastModelCallId: replace<number | null>(() => null),
   extraction: replace<Extraction | null>(() => null),
   extractionAttempts: replace<number>(() => 0),
   validationErrors: replace<string[]>(() => []),

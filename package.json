@@ -14,7 +14,10 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate:local": "wrangler d1 migrations apply DB --local",
     "deploy": "opennextjs-cloudflare build && opennextjs-cloudflare deploy",
-    "db:migrate:remote": "wrangler d1 migrations apply DB --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
+    "test": "vitest run",
+    "db:seed:generate": "tsx scripts/generate-seed.ts",
+    "db:seed:local": "tsx scripts/generate-seed.ts && wrangler d1 execute DB --local --file db/seed/seed.sql"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.14.0",
@@ -46,7 +49,9 @@
     "eslint": "^9",
     "eslint-config-next": "16.4.6",
     "tailwindcss": "4.3.3",
+    "tsx": "^4.23.15",
     "typescript": "^5",
+    "vitest": "^3.2.4",
     "wrangler": "^4.168.0"
   }
 }

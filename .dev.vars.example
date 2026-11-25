@@ -1,3 +1,6 @@
 # Copie para .dev.vars para definir segredos locais (lidos pelo wrangler/OpenNext).
 # No Worker publicado use: npx wrangler secret put NOME
 # EXAMPLE_SECRET=changeme
+# ANTHROPIC_API_KEY=sk-ant-...
+# EXTRACTION_MODEL=claude-haiku-5-5
+# TRANSCRIPTION_WEBHOOK_SECRET=changeme
