@@ -6,7 +6,7 @@ import { useState } from 'react'
 import { EVENTO_ATUALIZAR } from '@/components/fila-ao-vivo'
 import { Button } from '@/components/ui/button'
 
-/** Botão de demo: dispara um webhook falso no formato do ezworker. */
+/** Botão de demo: simula uma mensagem do WhatsApp que passa pela fila e pela IA (mock) e vira caso. */
 export function Simular() {
   const [enviando, setEnviando] = useState(false)
   return (
@@ -15,7 +15,7 @@ export function Simular() {
       className="text-foreground min-w-40 gap-1.5 whitespace-nowrap max-sm:h-11"
       isLoading={enviando}
       disabled={enviando}
-      title="Simula a chegada de um JSON do ezworker"
+      title="Simula uma mensagem de WhatsApp (texto, foto ou áudio) chegando e virando caso"
       onClick={async () => {
         setEnviando(true)
         await fetch('/api/simular', { method: 'POST' }).finally(() => setEnviando(false))
