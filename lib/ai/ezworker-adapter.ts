@@ -47,6 +47,7 @@ export function ezworkerToExtraction(o: OcorrenciaEzworker): Extraction {
     nfe_key: null,
     carrier_name: o.transportadora ?? null,
     carrier_cnpj: null,
+    driver_name: o.contexto?.motorista ?? null,
     origin_city: origin.city,
     origin_state: origin.state,
     destination_city: destination.city,

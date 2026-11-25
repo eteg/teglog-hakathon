@@ -1,26 +1,14 @@
 // State of the incident graph (docs/PLANO_DESENVOLVIMENTO.md, section 2.2).
 import { Annotation } from "@langchain/langgraph";
 
-import type { INCIDENT_STATUSES, MESSAGE_KINDS, PAYERS } from "@/db/schema";
+import type { INCIDENT_STATUSES, PAYERS } from "@/db/schema";
 import type { Extraction } from "@/lib/ai/extraction-schema";
+import type { PiiMap } from "@/lib/pii";
 import type { OcorrenciaEzworker } from "@/lib/types";
 
+export type { PiiMap };
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 export type Payer = (typeof PAYERS)[number];
-
-export type ReportMessage = {
-  id: number;
-  kind: (typeof MESSAGE_KINDS)[number];
-  text: string | null;
-  mediaKey: string | null;
-  mediaSha256: string | null;
-  receivedAt: string;
-  transcript: string | null;
-  transcriptStatus: "pending" | "received" | "failed" | null;
-};
-
-export type { PiiMap } from "@/lib/pii";
-import type { PiiMap } from "@/lib/pii";
 
 export type NormalizedEntities = {
   carrierId: number | null;
@@ -78,38 +66,32 @@ const replace = <T>(fallback: () => T) => Annotation<T>({ reducer: (_, next) => 
 const append = <T>() => Annotation<T[]>({ reducer: (a, b) => a.concat(b), default: () => [] });
 
 export const IncidentState = Annotation.Root({
-  /** Thread id of the run; equals the driver report id when the graph starts from messages. */
-  reportId: Annotation<string>(),
-  /** Occurrence delivered by ezworker; when present the graph skips its own extraction. */
+  threadId: Annotation<string>(),
+  /** Occurrence delivered by ezworker (already extracted from audio, photo and text). */
   source: replace<OcorrenciaEzworker | null>(() => null),
-  phone: replace<string>(() => ""),
-  /** When the report was opened (ISO); used for the claim deadline. */
+  /** When the occurrence reached us (ISO); used for the claim deadline. */
   reportedAt: replace<string>(() => ""),
-  messages: replace<ReportMessage[]>(() => []),
-  /** Text sent to the model, after mask_pii. */
+  /** Free text of the occurrence, after mask_pii. */
   maskedText: replace<string>(() => ""),
   piiMap: replace<PiiMap>(() => ({})),
-  /** Raw model answer, before validate_schema. */
+  /** ezworker answer converted to Extraction, before validate_schema. */
   rawExtraction: replace<string | null>(() => null),
-  lastModelCallId: replace<number | null>(() => null),
   extraction: replace<Extraction | null>(() => null),
-  extractionAttempts: replace<number>(() => 0),
   validationErrors: replace<string[]>(() => []),
   injectionSignals: replace<string[]>(() => []),
-  transcriptionTimedOut: replace<boolean>(() => false),
   entities: replace<NormalizedEntities | null>(() => null),
   delivery: replace<EnrichedDelivery | null>(() => null),
   evidenceRequested: replace<boolean>(() => false),
   missingEvidence: replace<string[]>(() => []),
+  cost: replace<CostResult | null>(() => null),
+  payer: replace<PayerDecision | null>(() => null),
   reviewReasons: replace<string[]>(() => []),
   /** Set once a human confirmed or corrected the incident. */
   reviewed: replace<boolean>(() => false),
-  /** Id of the row in `casos` (first version of the app) mirrored from this incident. */
-  caseId: replace<string | null>(() => null),
-  cost: replace<CostResult | null>(() => null),
-  payer: replace<PayerDecision | null>(() => null),
   status: replace<IncidentStatus | null>(() => null),
   incidentId: replace<number | null>(() => null),
+  /** Id of the row in `casos` (first version of the app) mirrored from this incident. */
+  caseId: replace<string | null>(() => null),
   /** Audit trail: each decision node appends one entry. */
   decisions: append<Decision>(),
 });

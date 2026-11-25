@@ -33,16 +33,15 @@ describe("missingEvidence", () => {
 });
 
 describe("decideReview", () => {
-  const base = { extraction: extraction(), cost: 4_160, deliveryFound: true, injectionSignals: [], transcriptionTimedOut: false };
+  const base = { extraction: extraction(), cost: 4_160, deliveryFound: true, injectionSignals: [] };
 
   it.each([
     ["clean case", {}, false],
     ["cost above the limit", { cost: 18_450 }, true],
     ["low confidence", { extraction: extraction({ confidence: { type: 0.95, invoice_number: 0.5, carrier: 0.9 } }) }, true],
-    ["extraction failed", { extraction: null }, true],
+    ["invalid occurrence", { extraction: null }, true],
     ["invoice not found", { deliveryFound: false }, true],
     ["injection signal", { injectionSignals: ["aprovar indenização integral"] }, true],
-    ["transcription timed out", { transcriptionTimedOut: true }, true],
   ] as const)("%s → review %s", (_desc, overrides, expected) => {
     expect(decideReview({ ...base, ...overrides }).result.needsReview).toBe(expected);
   });

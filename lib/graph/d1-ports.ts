@@ -1,86 +1,19 @@
-// Production implementation of IncidentPorts: D1 (Drizzle), R2 and the Claude API.
+// Production implementation of IncidentPorts: D1 (Drizzle).
 import "server-only";
 
-import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { and, asc, eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 
-import { carriers, decisions, deliveries, driverReports, drivers, incidents, insurancePolicies, messages, routes } from "@/db/schema";
-import { callModel, markSchemaResult } from "@/lib/ai/call-model";
-import { EXTRACTION_SYSTEM, extractionContent } from "@/lib/ai/extraction";
-import { ExtractionSchema, minConfidence } from "@/lib/ai/extraction-schema";
+import { carriers, decisions, deliveries, drivers, incidents, insurancePolicies, routes } from "@/db/schema";
+import { minConfidence } from "@/lib/ai/extraction-schema";
 import { getDb } from "@/lib/db";
 import { ibgeCode } from "@/lib/normalization/ibge";
 import { normalizeName, onlyDigits } from "@/lib/normalization/text";
-import { DEFAULT_EXTRACTION_MODEL } from "@/lib/rules/config";
-import { getBucket } from "@/lib/storage";
 
 import { createCase, patchCase } from "./case-mirror";
 import type { IncidentPorts } from "./ports";
-import type { ReportMessage } from "./state";
-
-const IMAGE_TYPES = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
-
-function toBase64(bytes: ArrayBuffer): string {
-  let binary = "";
-  const view = new Uint8Array(bytes);
-  for (let i = 0; i < view.length; i += 0x8000) binary += String.fromCharCode(...view.subarray(i, i + 0x8000));
-  return btoa(binary);
-}
-
-async function extractionModel() {
-  const { env } = await getCloudflareContext({ async: true });
-  return (env as unknown as Record<string, string | undefined>).EXTRACTION_MODEL || DEFAULT_EXTRACTION_MODEL;
-}
 
 export const d1Ports: IncidentPorts = {
-  async loadReport(reportId) {
-    const db = await getDb();
-    const [report] = await db.select().from(driverReports).where(eq(driverReports.id, reportId));
-    if (!report) throw new Error(`relato ${reportId} não encontrado`);
-    const rows = await db.select().from(messages).where(eq(messages.reportId, reportId)).orderBy(asc(messages.receivedAt), asc(messages.id));
-    const list: ReportMessage[] = rows.map((m) => ({
-      id: m.id,
-      kind: m.kind,
-      text: m.text,
-      mediaKey: m.mediaKey,
-      mediaSha256: m.mediaSha256,
-      receivedAt: m.receivedAt,
-      transcript: m.transcript,
-      transcriptStatus: m.transcriptStatus,
-    }));
-    return { phone: report.phone, openedAt: report.openedAt, messages: list };
-  },
-
-  async loadImages(list) {
-    const bucket = await getBucket();
-    const images = await Promise.all(
-      list
-        .filter((m) => m.kind === "image" && m.mediaKey)
-        .map(async (m) => {
-          const obj = await bucket.get(m.mediaKey!);
-          const mediaType = obj?.httpMetadata?.contentType ?? "";
-          if (!obj || !IMAGE_TYPES.has(mediaType)) return null;
-          return { mediaType, base64: toBase64(await obj.arrayBuffer()) };
-        }),
-    );
-    return images.filter((i): i is { mediaType: string; base64: string } => i !== null);
-  },
-
-  async extract(request) {
-    return callModel({
-      reportId: request.reportId,
-      node: "extract_multimodal",
-      attempt: request.attempt,
-      model: await extractionModel(),
-      schema: ExtractionSchema,
-      system: EXTRACTION_SYSTEM,
-      content: extractionContent(request),
-    });
-  },
-
-  recordSchemaResult: markSchemaResult,
-
-  async normalize(extraction, phone) {
+  async normalize(extraction) {
     const db = await getDb();
 
     let carrierId: number | null = null;
@@ -109,8 +42,14 @@ export const d1Ports: IncidentPorts = {
       routeId = route?.id ?? null;
     }
 
-    const [driver] = await db.select({ id: drivers.id }).from(drivers).where(eq(drivers.phone, onlyDigits(phone)));
-    return { carrierId, routeId, driverId: driver?.id ?? null };
+    // The driver comes from the delivery when the invoice is found (enrich); ezworker sends only a name.
+    let driverId: number | null = null;
+    const name = extraction.driver_name ? normalizeName(extraction.driver_name) : "";
+    if (name) {
+      const all = await db.select({ id: drivers.id, name: drivers.name }).from(drivers);
+      driverId = all.find((d) => normalizeName(d.name) === name)?.id ?? null;
+    }
+    return { carrierId, routeId, driverId };
   },
 
   async findDelivery(extraction) {
@@ -151,7 +90,7 @@ export const d1Ports: IncidentPorts = {
       carrierId: s.entities?.carrierId ?? null,
       driverId: s.entities?.driverId ?? null,
       type: e.type,
-      // Already masked by mask_pii; the original stays in `casos` / messages as evidence.
+      // Already masked by mask_pii; the original stays in `casos` as evidence.
       reasonText: e.reason_text,
       cost: s.cost?.cost ?? null,
       costEstimated: s.cost?.estimated ?? true,
@@ -171,9 +110,8 @@ export const d1Ports: IncidentPorts = {
         .values({
           ...values,
           number: caseId ?? `TMP-${crypto.randomUUID()}`,
-          threadId: s.reportId,
-          source: s.source ? "ezworker" : "claude",
-          reportId: s.source ? null : s.reportId,
+          threadId: s.threadId,
+          source: "ezworker",
           occurredAt: e.occurred_at ?? s.reportedAt,
         })
         .returning({ id: incidents.id });
@@ -188,20 +126,12 @@ export const d1Ports: IncidentPorts = {
     return { incidentId, caseId };
   },
 
-  async saveDecisions(reportId, incidentId, list) {
+  async saveDecisions(threadId, incidentId, list) {
     if (!list.length) return;
     const db = await getDb();
-    const rows = list.map((d) => ({ reportId, incidentId, node: d.node, rule: d.rule, input: d.input, output: d.output, reason: d.reason, at: d.at }));
+    const rows = list.map((d) => ({ threadId, incidentId, node: d.node, rule: d.rule, input: d.input, output: d.output, reason: d.reason, at: d.at }));
     // D1 accepts at most 100 bound parameters per statement: 8 columns × 10 rows.
     const chunks = Array.from({ length: Math.ceil(rows.length / 10) }, (_, i) => rows.slice(i * 10, i * 10 + 10));
-    await db.batch([
-      db.delete(decisions).where(eq(decisions.reportId, reportId)),
-      ...chunks.map((chunk) => db.insert(decisions).values(chunk)),
-    ]);
-  },
-
-  async setReportStatus(reportId, status) {
-    const db = await getDb();
-    await db.update(driverReports).set({ status }).where(eq(driverReports.id, reportId));
+    await db.batch([db.delete(decisions).where(eq(decisions.threadId, threadId)), ...chunks.map((chunk) => db.insert(decisions).values(chunk))]);
   },
 };

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "1bce9fbd-5010-4e06-8006-f57e48015940",
+  "id": "cf30d928-bdef-46c6-9c8c-0def0b9c7a73",
   "prevId": "d7989cc3-4df8-4c9a-bbb3-c7f4c5d004dd",
   "tables": {
     "carriers": {
@@ -153,8 +153,8 @@
           "notNull": true,
           "autoincrement": true
         },
-        "report_id": {
-          "name": "report_id",
+        "thread_id": {
+          "name": "thread_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -211,10 +211,10 @@
         }
       },
       "indexes": {
-        "decisions_report": {
-          "name": "decisions_report",
+        "decisions_thread": {
+          "name": "decisions_thread",
           "columns": [
-            "report_id"
+            "thread_id"
           ],
           "isUnique": false
         },
@@ -403,74 +403,6 @@
       "compositePrimaryKeys": {},
       "uniqueConstraints": {},
       "checkConstraints": {}
-    },
-    "driver_reports": {
-      "name": "driver_reports",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "text",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "phone": {
-          "name": "phone",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "status": {
-          "name": "status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "'open'"
-        },
-        "opened_at": {
-          "name": "opened_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ','now'))"
-        },
-        "closed_at": {
-          "name": "closed_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "thread_id": {
-          "name": "thread_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "driver_reports_phone_status": {
-          "name": "driver_reports_phone_status",
-          "columns": [
-            "phone",
-            "status"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "driver_reports_status_check": {
-          "name": "driver_reports_status_check",
-          "value": "status in ('open', 'closed', 'processing', 'waiting', 'done')"
-        }
-      }
     },
     "drivers": {
       "name": "drivers",
@@ -857,13 +789,6 @@
           "notNull": true,
           "autoincrement": false
         },
-        "report_id": {
-          "name": "report_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
         "thread_id": {
           "name": "thread_id",
           "type": "text",
@@ -1022,19 +947,6 @@
         }
       },
       "foreignKeys": {
-        "incidents_report_id_driver_reports_id_fk": {
-          "name": "incidents_report_id_driver_reports_id_fk",
-          "tableFrom": "incidents",
-          "tableTo": "driver_reports",
-          "columnsFrom": [
-            "report_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        },
         "incidents_delivery_id_deliveries_id_fk": {
           "name": "incidents_delivery_id_deliveries_id_fk",
           "tableFrom": "incidents",
@@ -1097,7 +1009,7 @@
         },
         "incidents_status_check": {
           "name": "incidents_status_check",
-          "value": "status in ('awaiting_transcription', 'awaiting_evidence', 'pending_review', 'registered', 'billed', 'recovered', 'lost')"
+          "value": "status in ('awaiting_evidence', 'pending_review', 'registered', 'billed', 'recovered', 'lost')"
         },
         "incidents_payer_check": {
           "name": "incidents_payer_check",
@@ -1305,247 +1217,6 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
-    "messages": {
-      "name": "messages",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "report_id": {
-          "name": "report_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "kind": {
-          "name": "kind",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "text": {
-          "name": "text",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "media_key": {
-          "name": "media_key",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "media_sha256": {
-          "name": "media_sha256",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "received_at": {
-          "name": "received_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ','now'))"
-        },
-        "external_id": {
-          "name": "external_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "transcript": {
-          "name": "transcript",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "transcript_status": {
-          "name": "transcript_status",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "transcript_confidence": {
-          "name": "transcript_confidence",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "transcribed_at": {
-          "name": "transcribed_at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        }
-      },
-      "indexes": {
-        "messages_external_id_unique": {
-          "name": "messages_external_id_unique",
-          "columns": [
-            "external_id"
-          ],
-          "isUnique": true
-        },
-        "messages_report": {
-          "name": "messages_report",
-          "columns": [
-            "report_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {
-        "messages_report_id_driver_reports_id_fk": {
-          "name": "messages_report_id_driver_reports_id_fk",
-          "tableFrom": "messages",
-          "tableTo": "driver_reports",
-          "columnsFrom": [
-            "report_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
-          "onDelete": "no action",
-          "onUpdate": "no action"
-        }
-      },
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {
-        "messages_kind_check": {
-          "name": "messages_kind_check",
-          "value": "kind in ('text', 'audio', 'image')"
-        }
-      }
-    },
-    "model_calls": {
-      "name": "model_calls",
-      "columns": {
-        "id": {
-          "name": "id",
-          "type": "integer",
-          "primaryKey": true,
-          "notNull": true,
-          "autoincrement": true
-        },
-        "report_id": {
-          "name": "report_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "node": {
-          "name": "node",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "model": {
-          "name": "model",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "attempt": {
-          "name": "attempt",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 1
-        },
-        "schema_valid": {
-          "name": "schema_valid",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "input_tokens": {
-          "name": "input_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "output_tokens": {
-          "name": "output_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "cache_read_tokens": {
-          "name": "cache_read_tokens",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": 0
-        },
-        "cost_usd": {
-          "name": "cost_usd",
-          "type": "real",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "latency_ms": {
-          "name": "latency_ms",
-          "type": "integer",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false
-        },
-        "error": {
-          "name": "error",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
-        },
-        "at": {
-          "name": "at",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": true,
-          "autoincrement": false,
-          "default": "(strftime('%Y-%m-%dT%H:%M:%fZ','now'))"
-        }
-      },
-      "indexes": {
-        "model_calls_report": {
-          "name": "model_calls_report",
-          "columns": [
-            "report_id"
-          ],
-          "isUnique": false
-        }
-      },
-      "foreignKeys": {},
-      "compositePrimaryKeys": {},
-      "uniqueConstraints": {},
-      "checkConstraints": {}
-    },
     "node_runs": {
       "name": "node_runs",
       "columns": {
@@ -1556,8 +1227,8 @@
           "notNull": true,
           "autoincrement": true
         },
-        "report_id": {
-          "name": "report_id",
+        "thread_id": {
+          "name": "thread_id",
           "type": "text",
           "primaryKey": false,
           "notNull": true,
@@ -1594,10 +1265,10 @@
         }
       },
       "indexes": {
-        "node_runs_report": {
-          "name": "node_runs_report",
+        "node_runs_thread": {
+          "name": "node_runs_thread",
           "columns": [
-            "report_id"
+            "thread_id"
           ],
           "isUnique": false
         }

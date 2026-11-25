@@ -28,15 +28,10 @@ async function invoke(threadId: string, input: Parameters<Awaited<ReturnType<typ
   return { threadId, state, paused: snapshot.next.length > 0, next: snapshot.next as string[] };
 }
 
-/** A driver report (messages) read by Claude. */
-export function runIncidentGraph(reportId: string) {
-  return invoke(reportId, { reportId });
-}
-
-/** An occurrence already extracted by ezworker. */
+/** An occurrence extracted by ezworker. */
 export function runIncidentFromEzworker(source: OcorrenciaEzworker) {
   const threadId = `ez-${crypto.randomUUID()}`;
-  return invoke(threadId, { reportId: threadId, source });
+  return invoke(threadId, { threadId, source });
 }
 
 /** Where a thread is paused, if anywhere. */
@@ -53,7 +48,7 @@ export async function threadOfCase(caseId: string): Promise<string | null> {
 }
 
 /** Resumes a thread only if it is paused at the expected node; returns null otherwise. */
-export async function resumeIncident(threadId: string, at: "await_review" | "await_evidence" | "await_transcriptions", value: ReviewAnswer | EvidenceAnswer | { timedOut: boolean }) {
+export async function resumeIncident(threadId: string, at: "await_review" | "await_evidence", value: ReviewAnswer | EvidenceAnswer) {
   if ((await pausedAt(threadId)) !== at) return null;
   return invoke(threadId, new Command({ resume: value }));
 }

@@ -20,7 +20,6 @@
     "db:seed:local": "tsx scripts/generate-seed.ts && wrangler d1 execute DB --local --file db/seed/seed.sql"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^1.14.0",
     "@langchain/core": "^1.5.1",
     "@langchain/langgraph": "^1.7.5",
     "@langchain/langgraph-checkpoint": "^1.2.3",

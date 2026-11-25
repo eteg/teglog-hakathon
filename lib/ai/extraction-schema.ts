@@ -1,6 +1,6 @@
-// Contract of what the extraction model must return (B5, quality criterion 8.1).
+// Contract of an extracted occurrence inside the graph (B5, quality criterion 8.1).
+// ezworker's answer is converted to it (ezworker-adapter.ts) and validated against it.
 // Kept free of Cloudflare bindings so tests and scripts can import it.
-// Nullable instead of optional: structured outputs need every key present.
 import { z } from "zod";
 
 import { INCIDENT_TYPES } from "@/db/schema";
@@ -27,6 +27,7 @@ export const ExtractionSchema = z.object({
   nfe_key: z.string().nullable().describe("44-digit NF-e access key, when visible"),
   carrier_name: z.string().nullable(),
   carrier_cnpj: z.string().nullable().describe("Digits only"),
+  driver_name: z.string().nullable(),
   origin_city: z.string().nullable(),
   origin_state: z.string().nullable().describe("Two-letter UF"),
   destination_city: z.string().nullable(),

@@ -69,8 +69,8 @@ Opções dos filtros: `routes`, `carriers`, `drivers` (`id`, `name`), `hours` e 
 ### `GET /api/incidents/:number` (ex.: `OC-1047`)
 Campos da ocorrência, mais:
 - `graph.decisions`: a trilha "por que o sistema decidiu isso" (`node`, `rule`, `reason`, `at`);
-- `graph.pausedAt` / `graph.pausedLabel`: onde o grafo está esperando (revisão, evidência, transcrição) ou `null`;
-- `graph.processingMs` e `graph.modelCalls`: tempo e custo (observabilidade);
+- `graph.pausedAt` / `graph.pausedLabel`: onde o grafo está esperando (revisão ou evidência) ou `null`;
+- `graph.processingMs` e `graph.steps`: tempo de cada passo do grafo (observabilidade);
 - `case`: o caso da primeira versão do app, com evidências (hash SHA-256, data), transcrição e confiança por campo.
 
 ## Ações que retomam o grafo
@@ -81,7 +81,6 @@ As telas atuais continuam usando as rotas que já existiam; o grafo foi ligado a
 |---|---|---|
 | Aprovar | `POST /api/ocorrencias/:id` `{ "acao": "aprovar" }` | Retoma a pausa de revisão com os campos como a analista deixou; refaz NF, custo e pagador |
 | Anexar evidência | `POST /api/ocorrencias/:id/evidencias` | Quando não falta mais nada, retoma a pausa de evidência |
-| Transcrição chegou | `POST /api/webhooks/transcription` | Retoma a pausa de transcrição do relato |
 
 ## Grafo
 

@@ -3,7 +3,7 @@ import "server-only";
 
 import { asc, eq } from "drizzle-orm";
 
-import { carriers, decisions, deliveries, drivers, incidents, modelCalls, nodeRuns, routes } from "@/db/schema";
+import { carriers, decisions, deliveries, drivers, incidents, nodeRuns, routes } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { pausedAt } from "@/lib/graph/run";
 import { obter } from "@/lib/store";
@@ -11,7 +11,6 @@ import { obter } from "@/lib/store";
 const PAUSE_LABEL: Record<string, string> = {
   await_review: "aguarda revisão humana",
   await_evidence: "aguarda evidência do motorista",
-  await_transcriptions: "aguarda transcrição do áudio",
 };
 
 export async function incidentDetail(number: string) {
@@ -29,10 +28,9 @@ export async function incidentDetail(number: string) {
 
   const i = row.i;
   const threadId = i.threadId;
-  const [trail, runs, calls, paused, caso] = await Promise.all([
+  const [trail, runs, paused, caso] = await Promise.all([
     db.select().from(decisions).where(eq(decisions.incidentId, i.id)).orderBy(asc(decisions.id)),
-    threadId ? db.select().from(nodeRuns).where(eq(nodeRuns.reportId, threadId)).orderBy(asc(nodeRuns.id)) : [],
-    threadId ? db.select().from(modelCalls).where(eq(modelCalls.reportId, threadId)).orderBy(asc(modelCalls.id)) : [],
+    threadId ? db.select().from(nodeRuns).where(eq(nodeRuns.threadId, threadId)).orderBy(asc(nodeRuns.id)) : [],
     threadId ? pausedAt(threadId) : null,
     obter(number),
   ]);
@@ -64,9 +62,9 @@ export async function incidentDetail(number: string) {
       pausedLabel: paused ? (PAUSE_LABEL[paused] ?? paused) : null,
       decisions: trail.map((d) => ({ node: d.node, rule: d.rule, reason: d.reason, input: d.input, output: d.output, at: d.at })),
       processingMs,
-      modelCalls: calls.map((c) => ({ model: c.model, attempt: c.attempt, schemaValid: c.schemaValid, costUsd: c.costUsd, latencyMs: c.latencyMs, error: c.error })),
+      steps: runs.map((r) => ({ node: r.node, ms: Date.parse(r.endedAt) - Date.parse(r.startedAt), waiting: r.waiting })),
     },
-    /** Case of the first version of the app (evidence with hash, transcription, per-field confidence), when there is one. */
+    /** Case of the first version of the app (evidence with hash, transcription, per-field confidence). */
     case: caso ?? null,
   };
 }

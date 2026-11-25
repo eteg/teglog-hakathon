@@ -11,13 +11,12 @@ type ReviewInput = {
   cost: number;
   deliveryFound: boolean;
   injectionSignals: readonly string[];
-  transcriptionTimedOut: boolean;
 };
 
 export function decideReview(input: ReviewInput): RuleResult<{ needsReview: boolean; reasons: string[] }> {
   const reasons: string[] = [];
   if (!input.extraction) {
-    reasons.push("a leitura do relato falhou duas vezes");
+    reasons.push("a ocorrência veio fora do formato");
   } else {
     const conf = minConfidence(input.extraction);
     if (conf < CONFIDENCE_THRESHOLD) reasons.push(`confiança da leitura em ${conf.toFixed(2)}, abaixo de ${CONFIDENCE_THRESHOLD}`);
@@ -25,7 +24,6 @@ export function decideReview(input: ReviewInput): RuleResult<{ needsReview: bool
   if (input.cost > REVIEW_VALUE_LIMIT) reasons.push(`custo de ${brl(input.cost)} acima da alçada de ${brl(REVIEW_VALUE_LIMIT)}`);
   if (!input.deliveryFound) reasons.push("nota fiscal não encontrada na base de entregas");
   if (input.injectionSignals.length) reasons.push("o relato contém texto com cara de instrução");
-  if (input.transcriptionTimedOut) reasons.push("a transcrição do áudio não chegou a tempo");
 
   return reasons.length
     ? { result: { needsReview: true, reasons }, rule: "REVIEW_REQUIRED", reason: `Revisão humana: ${reasons.join("; ")}.` }

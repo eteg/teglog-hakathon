@@ -15,7 +15,7 @@ CREATE TABLE `clusters` (
 --> statement-breakpoint
 CREATE TABLE `decisions` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`report_id` text NOT NULL,
+	`thread_id` text NOT NULL,
 	`incident_id` integer,
 	`node` text NOT NULL,
 	`rule` text NOT NULL,
@@ -26,7 +26,7 @@ CREATE TABLE `decisions` (
 	FOREIGN KEY (`incident_id`) REFERENCES `incidents`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE INDEX `decisions_report` ON `decisions` (`report_id`);--> statement-breakpoint
+CREATE INDEX `decisions_thread` ON `decisions` (`thread_id`);--> statement-breakpoint
 CREATE INDEX `decisions_incident` ON `decisions` (`incident_id`);--> statement-breakpoint
 CREATE TABLE `deliveries` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -49,17 +49,6 @@ CREATE TABLE `deliveries` (
 CREATE UNIQUE INDEX `deliveries_nfe_key_unique` ON `deliveries` (`nfe_key`);--> statement-breakpoint
 CREATE INDEX `deliveries_dimensions` ON `deliveries` (`route_id`,`carrier_id`,`driver_id`,`departed_at`);--> statement-breakpoint
 CREATE INDEX `deliveries_invoice` ON `deliveries` (`invoice_number`);--> statement-breakpoint
-CREATE TABLE `driver_reports` (
-	`id` text PRIMARY KEY NOT NULL,
-	`phone` text NOT NULL,
-	`status` text DEFAULT 'open' NOT NULL,
-	`opened_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
-	`closed_at` text,
-	`thread_id` text NOT NULL,
-	CONSTRAINT "driver_reports_status_check" CHECK(status in ('open', 'closed', 'processing', 'waiting', 'done'))
-);
---> statement-breakpoint
-CREATE INDEX `driver_reports_phone_status` ON `driver_reports` (`phone`,`status`);--> statement-breakpoint
 CREATE TABLE `drivers` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`name` text NOT NULL,
@@ -118,7 +107,6 @@ CREATE TABLE `incident_clusters` (
 CREATE TABLE `incidents` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`number` text NOT NULL,
-	`report_id` text,
 	`thread_id` text,
 	`source` text DEFAULT 'seed' NOT NULL,
 	`delivery_id` integer,
@@ -136,13 +124,12 @@ CREATE TABLE `incidents` (
 	`status` text NOT NULL,
 	`occurred_at` text NOT NULL,
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
-	FOREIGN KEY (`report_id`) REFERENCES `driver_reports`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`delivery_id`) REFERENCES `deliveries`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`route_id`) REFERENCES `routes`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`carrier_id`) REFERENCES `carriers`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`driver_id`) REFERENCES `drivers`(`id`) ON UPDATE no action ON DELETE no action,
 	CONSTRAINT "incidents_type_check" CHECK(type in ('damage', 'loss', 'refusal', 'redelivery', 'discrepancy', 'accident', 'delay')),
-	CONSTRAINT "incidents_status_check" CHECK(status in ('awaiting_transcription', 'awaiting_evidence', 'pending_review', 'registered', 'billed', 'recovered', 'lost')),
+	CONSTRAINT "incidents_status_check" CHECK(status in ('awaiting_evidence', 'pending_review', 'registered', 'billed', 'recovered', 'lost')),
 	CONSTRAINT "incidents_payer_check" CHECK(payer is null or payer in ('insurer', 'carrier', 'shipper', 'absorbed'))
 );
 --> statement-breakpoint
@@ -161,52 +148,16 @@ CREATE TABLE `insurance_policies` (
 	FOREIGN KEY (`carrier_id`) REFERENCES `carriers`(`id`) ON UPDATE no action ON DELETE no action
 );
 --> statement-breakpoint
-CREATE TABLE `messages` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`report_id` text NOT NULL,
-	`kind` text NOT NULL,
-	`text` text,
-	`media_key` text,
-	`media_sha256` text,
-	`received_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
-	`external_id` text,
-	`transcript` text,
-	`transcript_status` text,
-	`transcript_confidence` real,
-	`transcribed_at` text,
-	FOREIGN KEY (`report_id`) REFERENCES `driver_reports`(`id`) ON UPDATE no action ON DELETE no action,
-	CONSTRAINT "messages_kind_check" CHECK(kind in ('text', 'audio', 'image'))
-);
---> statement-breakpoint
-CREATE UNIQUE INDEX `messages_external_id_unique` ON `messages` (`external_id`);--> statement-breakpoint
-CREATE INDEX `messages_report` ON `messages` (`report_id`);--> statement-breakpoint
-CREATE TABLE `model_calls` (
-	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`report_id` text,
-	`node` text NOT NULL,
-	`model` text NOT NULL,
-	`attempt` integer DEFAULT 1 NOT NULL,
-	`schema_valid` integer,
-	`input_tokens` integer NOT NULL,
-	`output_tokens` integer NOT NULL,
-	`cache_read_tokens` integer DEFAULT 0 NOT NULL,
-	`cost_usd` real NOT NULL,
-	`latency_ms` integer NOT NULL,
-	`error` text,
-	`at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL
-);
---> statement-breakpoint
-CREATE INDEX `model_calls_report` ON `model_calls` (`report_id`);--> statement-breakpoint
 CREATE TABLE `node_runs` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
-	`report_id` text NOT NULL,
+	`thread_id` text NOT NULL,
 	`node` text NOT NULL,
 	`started_at` text NOT NULL,
 	`ended_at` text NOT NULL,
 	`waiting` integer DEFAULT false NOT NULL
 );
 --> statement-breakpoint
-CREATE INDEX `node_runs_report` ON `node_runs` (`report_id`);--> statement-breakpoint
+CREATE INDEX `node_runs_thread` ON `node_runs` (`thread_id`);--> statement-breakpoint
 CREATE TABLE `reviews` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`incident_id` integer NOT NULL,

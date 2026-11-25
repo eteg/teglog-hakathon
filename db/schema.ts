@@ -83,9 +83,8 @@ export const padroes = sqliteTable("padroes", {
 const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
 
 export const INCIDENT_TYPES = ["damage", "loss", "refusal", "redelivery", "discrepancy", "accident", "delay"] as const;
-export const INCIDENT_SOURCES = ["ezworker", "claude", "seed"] as const;
+export const INCIDENT_SOURCES = ["ezworker", "seed"] as const;
 export const INCIDENT_STATUSES = [
-  "awaiting_transcription",
   "awaiting_evidence",
   "pending_review",
   "registered",
@@ -94,9 +93,6 @@ export const INCIDENT_STATUSES = [
   "lost",
 ] as const;
 export const PAYERS = ["insurer", "carrier", "shipper", "absorbed"] as const;
-export const MESSAGE_KINDS = ["text", "audio", "image"] as const;
-export const TRANSCRIPT_STATUSES = ["pending", "received", "failed"] as const;
-export const REPORT_STATUSES = ["open", "closed", "processing", "waiting", "done"] as const;
 
 const inList = (column: string, values: readonly string[]) =>
   sql.raw(`${column} in (${values.map((v) => `'${v}'`).join(", ")})`);
@@ -152,44 +148,10 @@ export const deliveries = sqliteTable("deliveries", {
   index("deliveries_invoice").on(t.invoiceNumber),
 ]);
 
-/** A driver's report: the messages from one phone grouped by time window (B2). */
-export const driverReports = sqliteTable("driver_reports", {
-  id: text("id").primaryKey(),
-  phone: text("phone").notNull(),
-  status: text("status", { enum: REPORT_STATUSES }).notNull().default("open"),
-  openedAt: text("opened_at").notNull().default(now),
-  closedAt: text("closed_at"),
-  /** LangGraph thread id; equals the report id. */
-  threadId: text("thread_id").notNull(),
-}, (t) => [
-  index("driver_reports_phone_status").on(t.phone, t.status),
-  check("driver_reports_status_check", inList("status", REPORT_STATUSES)),
-]);
-
-export const messages = sqliteTable("messages", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  reportId: text("report_id").notNull().references(() => driverReports.id),
-  kind: text("kind", { enum: MESSAGE_KINDS }).notNull(),
-  text: text("text"),
-  mediaKey: text("media_key"),
-  mediaSha256: text("media_sha256"),
-  receivedAt: text("received_at").notNull().default(now),
-  /** WhatsApp message id; correlation key for the transcription webhook. */
-  externalId: text("external_id").unique(),
-  transcript: text("transcript"),
-  transcriptStatus: text("transcript_status", { enum: TRANSCRIPT_STATUSES }),
-  transcriptConfidence: real("transcript_confidence"),
-  transcribedAt: text("transcribed_at"),
-}, (t) => [
-  index("messages_report").on(t.reportId),
-  check("messages_kind_check", inList("kind", MESSAGE_KINDS)),
-]);
-
 export const incidents = sqliteTable("incidents", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   /** Human-readable number, e.g. OC-2026-000123. */
   number: text("number").notNull().unique(),
-  reportId: text("report_id").references(() => driverReports.id),
   /** LangGraph thread that produced this incident (resumed on review and evidence). */
   threadId: text("thread_id").unique(),
   source: text("source", { enum: INCIDENT_SOURCES }).notNull().default("seed"),
@@ -230,7 +192,7 @@ export const evidence = sqliteTable("evidence", {
 /** Audit trail: one row per decision node (shown on the incident detail, F3). */
 export const decisions = sqliteTable("decisions", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  reportId: text("report_id").notNull(),
+  threadId: text("thread_id").notNull(),
   incidentId: integer("incident_id").references(() => incidents.id),
   node: text("node").notNull(),
   rule: text("rule").notNull(),
@@ -238,7 +200,7 @@ export const decisions = sqliteTable("decisions", {
   output: text("output", { mode: "json" }),
   reason: text("reason").notNull(),
   at: text("at").notNull(),
-}, (t) => [index("decisions_report").on(t.reportId), index("decisions_incident").on(t.incidentId)]);
+}, (t) => [index("decisions_thread").on(t.threadId), index("decisions_incident").on(t.incidentId)]);
 
 export const reviews = sqliteTable("reviews", {
   id: integer("id").primaryKey({ autoIncrement: true }),
@@ -262,32 +224,16 @@ export const incidentClusters = sqliteTable("incident_clusters", {
   similarity: real("similarity").notNull(),
 }, (t) => [primaryKey({ columns: [t.incidentId, t.clusterId] })]);
 
-// Observability (quality criterion 8.5).
-export const modelCalls = sqliteTable("model_calls", {
-  id: integer("id").primaryKey({ autoIncrement: true }),
-  reportId: text("report_id"),
-  node: text("node").notNull(),
-  model: text("model").notNull(),
-  attempt: integer("attempt").notNull().default(1),
-  schemaValid: integer("schema_valid", { mode: "boolean" }),
-  inputTokens: integer("input_tokens").notNull(),
-  outputTokens: integer("output_tokens").notNull(),
-  cacheReadTokens: integer("cache_read_tokens").notNull().default(0),
-  costUsd: real("cost_usd").notNull(),
-  latencyMs: integer("latency_ms").notNull(),
-  error: text("error"),
-  at: text("at").notNull().default(now),
-}, (t) => [index("model_calls_report").on(t.reportId)]);
-
+// Observability (quality criterion 8.5): time spent in each graph node.
 export const nodeRuns = sqliteTable("node_runs", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  reportId: text("report_id").notNull(),
+  threadId: text("thread_id").notNull(),
   node: text("node").notNull(),
   startedAt: text("started_at").notNull(),
   endedAt: text("ended_at").notNull(),
-  /** True when the node only waited (transcription, evidence, human review). */
+  /** True when the node only waited (evidence, human review). */
   waiting: integer("waiting", { mode: "boolean" }).notNull().default(false),
-}, (t) => [index("node_runs_report").on(t.reportId)]);
+}, (t) => [index("node_runs_thread").on(t.threadId)]);
 
 // LangGraph state (lib/graph/d1-checkpointer.ts).
 export const graphCheckpoints = sqliteTable("graph_checkpoints", {

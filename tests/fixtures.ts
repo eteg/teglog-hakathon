@@ -9,6 +9,7 @@ export function extraction(overrides: Partial<Extraction> = {}): Extraction {
     nfe_key: null,
     carrier_name: "Transportadora Beta",
     carrier_cnpj: null,
+    driver_name: null,
     origin_city: "São Paulo",
     origin_state: "SP",
     destination_city: "Curitiba",
