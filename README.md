@@ -93,3 +93,113 @@ Após mudar bindings/vars no `wrangler.jsonc`, rode `npm run cf-typegen` para at
 - Cache: [open-next.config.ts](open-next.config.ts) usa o cache de static assets (serve o que foi pré-renderizado, sem revalidação). Se precisar de ISR/`revalidate`, troque por R2 ou KV ([docs](https://opennext.js.org/cloudflare/caching)).
 - Segredos locais: copie `.dev.vars.example` para `.dev.vars`. Remotos: `npx wrangler secret put NOME`.
 - Se o `next dev` reclamar de módulos de fonte após um `npm run preview`, apague `.next/`.
+
+---
+
+# Portal de ocorrências (Recupera)
+
+Portal onde o **cliente da transportadora** acompanha as ocorrências da carga dele.
+
+## Fluxo
+
+```
+motorista/transportadora ──áudio/foto/texto──▶ ezworker (/ezworker/audio | /image | /text)
+                                                   │  JSON da ocorrência
+                                                   ▼
+                              POST /api/webhook/ezworker  (este app)
+                                                   │  regras de cobertura + prazo + devolutiva
+                                                   ▼
+                              D1 (tabela casos) ─▶ fila (atualiza a cada 5 s) ─▶ página do caso ─▶ resposta do cliente
+```
+
+## Rodar
+
+```bash
+npm install
+npm run db:migrate:local   # cria as tabelas no D1 local
+npm run dev                # http://localhost:3000
+```
+
+Sem `CLOUDFLARE_API_TOKEN`, o `next dev` usa D1 e R2 emulados (bindings `"remote": true` ficam desligados; ver `next.config.ts`).
+
+Na fila, o botão **Simular webhook (demo)** injeta uma ocorrência no formato do ezworker.
+
+## Contrato do webhook
+
+`POST /api/webhook/ezworker` com JSON (direto ou embrulhado em `{ "data": ... }`).
+Header opcional `x-webhook-secret` quando `EZWORKER_WEBHOOK_SECRET` estiver definido.
+
+```json
+{
+  "canal": "image",                       // audio | image | video | text
+  "tipo": "avaria",                       // avaria | recusa | reentrega | extravio | atraso | acidente
+  "subtipo": "embalagem_violada",
+  "gravidade": "alta",                    // baixa | media | alta
+  "nf": "000123456",
+  "transportadora": "Transportadora Beta",
+  "produto": "eletrônico",
+  "volumes_afetados": 2,
+  "resumo": "Duas caixas de TV com embalagem rasgada",
+  "transcricao": "texto do áudio, se houver",
+  "evidencias": [{ "tipo": "foto_avaria", "legivel": true, "url": "https://..." }],
+  "faltando": ["foto da etiqueta"],
+  "confianca": { "tipo": 0.94, "nf": 0.71 },
+  "instrucoes_ignoradas": ["aprovar indenização integral"],
+  "contexto": {
+    "valor_nf": 18450,
+    "apolice": { "franquia": 2000, "cobre_descarga": false },
+    "rota": "São Paulo → Manaus",
+    "cliente": "Loja Eletro Norte",
+    "prazo_prometido": "2026-11-28",
+    "prazo_protesto": "2026-12-05"
+  }
+}
+```
+
+Obrigatórios: `canal`, `tipo`, `subtipo`. Resposta `201 { id, status, pagador }` ou `422` com os erros de schema.
+
+### Mídias das evidências (R2)
+
+Cada item de `evidencias` pode trazer o arquivo de duas formas; o app copia para o R2 em
+`evidencias/<caso>/<uuid>.<ext>`, calcula o SHA-256 e passa a servir por `/api/files/<key>`:
+
+- `"url": "https://..."`: o app baixa (até 10 MB, timeout de 15 s);
+- `"conteudo_base64": "...", "content_type": "image/jpeg", "nome_arquivo": "foto.jpg"`: o base64 não é gravado no D1.
+
+Campos opcionais: `hash` (SHA-256 do ezworker; se divergir do calculado, fica registrado) e `capturada_em`.
+Falha ao copiar não derruba o webhook: a evidência mantém a URL e ganha `erro_armazenamento`.
+SVG/HTML são recusados (poderiam executar script servidos pelo próprio domínio).
+
+Pela tela do caso, o cliente anexa evidências: `POST /api/ocorrencias/<id>/evidencias`
+(multipart: `file`, `tipo`, `resolve` opcional com o nome da pendência que o arquivo resolve).
+
+### Rotas do contrato front ↔ back
+
+| Chamada | Rota |
+|---|---|
+| Listar ocorrências (filtros, ordenação, paginação) | `GET /api/ocorrencias?q&tipo&status&transportadora&motorista&rota&situacao&ordenar&direcao&page&pageSize` |
+| Buscar uma ocorrência | `GET /api/ocorrencias/<id>` |
+| Ações (aprovar, responder, encerrar, confirmar/corrigir campo) | `POST /api/ocorrencias/<id>` |
+| Anexar evidência | `POST /api/ocorrencias/<id>/evidencias` |
+| Fila de revisão | `GET /api/revisao` |
+| Pergunta do gestor | `POST /api/perguntas { pergunta }` |
+| Padrões emergentes / dar nome | `GET /api/padroes`, `PUT /api/padroes/<chave> { nome }` |
+| Indicadores por dimensão (F1) | pendente: aguarda a integração do back |
+
+## Onde está cada coisa
+
+- `lib/types.ts`: contrato da ocorrência
+- `lib/regras.ts`: regras de cobertura (quem arca), prazo do art. 754, texto da devolutiva
+- `lib/store.ts`: casos no D1 (tabela `casos` em `db/schema.ts`); semeia os exemplos quando o banco está vazio
+- `lib/padroes.ts`: base sintética e cálculo por mil entregas do painel
+- `app/api/webhook/ezworker`: recebe o JSON do ezworker
+
+## Design system
+
+Segue o padrão do `mca-refactor` (shadcn new-york, base neutral, lucide):
+
+- `components/ui/*`: primitivos shadcn copiados do mca-refactor
+- `components/table`, `components/card-list`, `components/dynamic-list.tsx`: listagem responsiva (tabela no desktop, accordion abaixo do breakpoint `desktop` de 56rem), ordenação `null → asc → desc → null`
+- `components/page-header.tsx`: `PageHeader` + `PageContainer`
+- `components/app-layout/*`: header verde + sidebar recolhível
+- Tokens de tema em `app/globals.css` (mesmos do `index.css` do mca-refactor)

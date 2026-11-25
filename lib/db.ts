@@ -11,3 +11,9 @@ export async function getDb() {
   const { env } = await getCloudflareContext({ async: true });
   return drizzle(env.DB, { schema });
 }
+
+/** Acesso direto ao D1 (SQL cru), usado onde a consulta precisa ser exibida ao usuário. */
+export async function getD1() {
+  const { env } = await getCloudflareContext({ async: true });
+  return env.DB;
+}
