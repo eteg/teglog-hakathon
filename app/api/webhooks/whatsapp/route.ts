@@ -1,50 +1,49 @@
 import { after } from "next/server";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { ingestMessages } from "@/lib/ingest";
-import { getCooldownSeconds, tick } from "@/lib/queue/dispatch";
-import { parseWhatsappPayload } from "@/lib/whatsapp/parse";
-import { isValidSignature } from "@/lib/whatsapp/signature";
+import { ingerirMensagens } from "@/lib/ingestao";
+import { processarFila, segundosDeCooldown } from "@/lib/fila";
+import { assinaturaValida, interpretarPayload } from "@/lib/whatsapp";
 
-export async function GET(request: Request) {
+export async function GET(req: Request) {
   const { env } = await getCloudflareContext({ async: true });
-  const params = new URL(request.url).searchParams;
+  const params = new URL(req.url).searchParams;
 
   if (params.get("hub.mode") !== "subscribe" || params.get("hub.verify_token") !== env.WHATSAPP_VERIFY_TOKEN) {
-    return new Response("Forbidden", { status: 403 });
+    return Response.json({ erro: "não autorizado" }, { status: 403 });
   }
   return new Response(params.get("hub.challenge"));
 }
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   const { env } = await getCloudflareContext({ async: true });
-  const rawBody = await request.text();
+  const corpoBruto = await req.text();
 
   if (env.WHATSAPP_MODE !== "mock") {
-    const signature = request.headers.get("x-hub-signature-256");
-    if (!(await isValidSignature(rawBody, signature, env.WHATSAPP_APP_SECRET))) {
-      return new Response("Invalid signature", { status: 401 });
+    const assinatura = req.headers.get("x-hub-signature-256");
+    if (!(await assinaturaValida(corpoBruto, assinatura, env.WHATSAPP_APP_SECRET))) {
+      return Response.json({ erro: "assinatura inválida" }, { status: 401 });
     }
   }
 
-  let payload;
+  let corpo;
   try {
-    payload = JSON.parse(rawBody);
+    corpo = JSON.parse(corpoBruto);
   } catch {
-    return Response.json({ error: "JSON inválido." }, { status: 400 });
+    return Response.json({ erro: "JSON inválido" }, { status: 400 });
   }
 
-  const messages = parseWhatsappPayload(payload);
+  const mensagens = interpretarPayload(corpo);
   console.log("[webhook] recebido", {
-    mensagens: messages.length,
-    telefones: [...new Set(messages.map((message) => message.fromPhone))],
+    mensagens: mensagens.length,
+    telefones: [...new Set(mensagens.map((mensagem) => mensagem.telefone))],
   });
 
-  await ingestMessages(messages);
+  await ingerirMensagens(mensagens);
 
-  const cooldownSeconds = await getCooldownSeconds();
+  const cooldownSegundos = await segundosDeCooldown();
   after(async () => {
-    await new Promise((resolve) => setTimeout(resolve, cooldownSeconds * 1000));
-    await tick("webhook");
+    await new Promise((resolve) => setTimeout(resolve, cooldownSegundos * 1000));
+    await processarFila("webhook");
   });
   return Response.json({ status: "ok" });
 }

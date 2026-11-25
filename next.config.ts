@@ -21,5 +21,6 @@ const nextConfig: NextConfig = {
 export default nextConfig;
 
 // Expõe os bindings do wrangler.jsonc (ex.: D1 local) no `next dev`
-// via getCloudflareContext().
-initOpenNextCloudflareForDev();
+// via getCloudflareContext(). Bindings remotos (`"remote": true`) exigem
+// CLOUDFLARE_API_TOKEN; sem ele, D1 e R2 ficam emulados localmente.
+initOpenNextCloudflareForDev({ remoteBindings: Boolean(process.env.CLOUDFLARE_API_TOKEN) });

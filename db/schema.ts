@@ -1,57 +1,77 @@
 import { sql } from "drizzle-orm";
 import { index, integer, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
+import type { Caso } from "@/lib/types";
 
 const timestamps = {
-  createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-  updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  criadoEm: text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+  atualizadoEm: text("atualizado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
 };
 
-export const whatsappMessages = sqliteTable("whatsapp_messages", {
+export const mensagensWhatsapp = sqliteTable("mensagens_whatsapp", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  whatsappMessageId: text("whatsapp_message_id").notNull().unique(),
-  fromPhone: text("from_phone").notNull(),
-  type: text("type", { enum: ["text", "image", "audio", "location", "other"] }).notNull(),
-  textBody: text("text_body"),
-  mediaId: text("media_id"),
-  contentType: text("content_type"),
-  storageKey: text("storage_key"),
-  mediaStatus: text("media_status", { enum: ["none", "pending", "stored", "failed"] })
+  idMensagemWhatsapp: text("id_mensagem_whatsapp").notNull().unique(),
+  telefone: text("telefone").notNull(),
+  tipo: text("tipo", { enum: ["text", "image", "audio", "location", "other"] }).notNull(),
+  texto: text("texto"),
+  idMidia: text("id_midia"),
+  tipoConteudo: text("tipo_conteudo"),
+  chaveArmazenamento: text("chave_armazenamento"),
+  statusMidia: text("status_midia", { enum: ["nenhuma", "pendente", "salva", "falhou"] })
     .notNull()
-    .default("none"),
+    .default("nenhuma"),
   latitude: real("latitude"),
   longitude: real("longitude"),
-  rawPayload: text("raw_payload").notNull(),
-  receivedAt: text("received_at").notNull(),
+  payloadBruto: text("payload_bruto").notNull(),
+  recebidoEm: text("recebido_em").notNull(),
   ...timestamps,
 });
 
-export const analysisJobs = sqliteTable(
-  "analysis_jobs",
+export const tarefasAnalise = sqliteTable(
+  "tarefas_analise",
   {
     id: integer("id").primaryKey({ autoIncrement: true }),
-    messageId: integer("message_id")
+    mensagemId: integer("mensagem_id")
       .notNull()
-      .references(() => whatsappMessages.id),
+      .references(() => mensagensWhatsapp.id),
     endpoint: text("endpoint").notNull(),
-    status: text("status", { enum: ["pending", "sending", "done", "failed"] })
+    status: text("status", { enum: ["pendente", "enviando", "concluida", "falhou"] })
       .notNull()
-      .default("pending"),
-    requestPayload: text("request_payload"),
-    responseStatus: integer("response_status"),
-    attempts: integer("attempts").notNull().default(0),
-    maxAttempts: integer("max_attempts").notNull().default(5),
-    nextAttemptAt: text("next_attempt_at").notNull().default(sql`CURRENT_TIMESTAMP`),
-    lockedAt: text("locked_at"),
-    completedAt: text("completed_at"),
-    lastError: text("last_error"),
+      .default("pendente"),
+    payloadEnvio: text("payload_envio"),
+    statusResposta: integer("status_resposta"),
+    tentativas: integer("tentativas").notNull().default(0),
+    maxTentativas: integer("max_tentativas").notNull().default(5),
+    proximaTentativaEm: text("proxima_tentativa_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+    travadoEm: text("travado_em"),
+    concluidoEm: text("concluido_em"),
+    ultimoErro: text("ultimo_erro"),
     ...timestamps,
   },
-  (table) => [
-    uniqueIndex("analysis_jobs_message_endpoint_unique").on(table.messageId, table.endpoint),
-    index("analysis_jobs_queue_index").on(table.status, table.nextAttemptAt),
+  (tabela) => [
+    uniqueIndex("tarefas_analise_mensagem_endpoint_unico").on(tabela.mensagemId, tabela.endpoint),
+    index("tarefas_analise_fila_idx").on(tabela.status, tabela.proximaTentativaEm),
   ],
 );
 
-export type WhatsappMessage = typeof whatsappMessages.$inferSelect;
-export type NewWhatsappMessage = typeof whatsappMessages.$inferInsert;
-export type AnalysisJob = typeof analysisJobs.$inferSelect;
+export type MensagemWhatsapp = typeof mensagensWhatsapp.$inferSelect;
+export type NovaMensagemWhatsapp = typeof mensagensWhatsapp.$inferInsert;
+export type TarefaAnalise = typeof tarefasAnalise.$inferSelect;
+
+// Ocorrências recebidas do ezworker (via webhook). O caso completo fica em `dados` (JSON);
+// as colunas soltas servem para ordenar e filtrar sem abrir o JSON.
+export const casos = sqliteTable("casos", {
+  seq: integer("seq").primaryKey({ autoIncrement: true }),
+  id: text("id").notNull().unique(),
+  status: text("status").notNull(),
+  recebidoEm: text("recebido_em").notNull(),
+  dados: text("dados", { mode: "json" }).$type<Caso>().notNull(),
+});
+
+export type CasoRow = typeof casos.$inferSelect;
+
+// Nome dado pelo analista a um grupo de relatos parecidos (padrões emergentes).
+export const padroes = sqliteTable("padroes", {
+  chave: text("chave").primaryKey(),
+  nome: text("nome").notNull(),
+  atualizadoEm: text("atualizado_em").notNull(),
+});

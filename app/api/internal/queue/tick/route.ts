@@ -1,12 +1,12 @@
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { tick } from "@/lib/queue/dispatch";
+import { processarFila } from "@/lib/fila";
 
-export async function POST(request: Request) {
+export async function POST(req: Request) {
   const { env } = await getCloudflareContext({ async: true });
-  if (!env.INTERNAL_SECRET || request.headers.get("x-internal-secret") !== env.INTERNAL_SECRET) {
-    return new Response("Unauthorized", { status: 401 });
+  if (!env.INTERNAL_SECRET || req.headers.get("x-internal-secret") !== env.INTERNAL_SECRET) {
+    return Response.json({ erro: "não autorizado" }, { status: 401 });
   }
 
-  await tick("cron");
+  await processarFila("cron");
   return Response.json({ status: "ok" });
 }
