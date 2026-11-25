@@ -8,6 +8,7 @@ import { useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
 
 import { EVENTO_ATUALIZAR } from '@/components/fila-ao-vivo'
+import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 
 const INTERVALO_MS = 5000
@@ -33,12 +34,14 @@ async function buscarPontos() {
   return resposta?.ok ? ((await resposta.json()) as Pontos) : null
 }
 
-/** Mapa de calor dos incidentes: cada ocorrência é um ponto, com peso pelo prejuízo. Atualiza a cada 5 s. */
 export function MapaPrejuizo() {
   const container = useRef<HTMLDivElement>(null)
   const mapa = useRef<Map | null>(null)
   const [total, setTotal] = useState<number | null>(null)
   const [pronto, setPronto] = useState(false)
+  const [falhou, setFalhou] = useState(false)
+  const [casoAusente, setCasoAusente] = useState(false)
+  const [tentativa, setTentativa] = useState(0)
   const casoEmFoco = useSearchParams().get('caso')
 
   useEffect(() => {
@@ -56,17 +59,28 @@ export function MapaPrejuizo() {
       if (carregado && mapa.current) (mapa.current.getSource('incidentes') as GeoJSONSource).setData(pontos)
     }
 
+    const falharCarregamento = () => {
+      if (!ativo) return
+      setFalhou(true)
+      setPronto(true)
+    }
+
     import('maplibre-gl').then((maplibre) => {
       maplibre.setWorkerUrl(new URL('maplibre-gl/dist/maplibre-gl-worker.mjs', import.meta.url).toString())
       if (!ativo || !container.current) return
       const instancia = new maplibre.Map({ container: container.current, style: ESTILO, center: SUDESTE, zoom: 5.3 })
       mapa.current = instancia
       instancia.addControl(new maplibre.NavigationControl({ showCompass: false }), 'top-right')
+      instancia.on('error', () => {
+        if (!carregado) falharCarregamento()
+      })
       instancia.on('load', async () => {
         const pontos = (await pontosIniciais) ?? SEM_PONTOS
         if (!ativo) return
+        setFalhou(false)
         setTotal(pontos.features.length)
         const alvo = pontos.features.find((ponto) => ponto.properties?.id === casoEmFoco)
+        setCasoAusente(Boolean(casoEmFoco) && !alvo)
         if (alvo) instancia.jumpTo({ center: alvo.geometry.coordinates as [number, number], zoom: ZOOM_DO_CASO })
         instancia.addSource('incidentes', { type: 'geojson', data: pontos })
         instancia.addLayer({
@@ -93,11 +107,25 @@ export function MapaPrejuizo() {
             'circle-stroke-width': 1.5,
           },
         })
+        if (casoEmFoco) {
+          instancia.addLayer({
+            id: 'caso-em-foco',
+            type: 'circle',
+            source: 'incidentes',
+            filter: ['==', ['get', 'id'], casoEmFoco],
+            paint: {
+              'circle-radius': 9,
+              'circle-color': 'rgb(37,99,235)',
+              'circle-stroke-color': 'white',
+              'circle-stroke-width': 2.5,
+            },
+          })
+        }
         carregado = true
-        instancia.once('idle', () => setPronto(true))
+        setPronto(true)
         intervalo = setInterval(atualizar, INTERVALO_MS)
       })
-    })
+    }).catch(falharCarregamento)
 
     window.addEventListener(EVENTO_ATUALIZAR, atualizar)
     return () => {
@@ -108,7 +136,14 @@ export function MapaPrejuizo() {
       mapa.current?.remove()
       mapa.current = null
     }
-  }, [casoEmFoco])
+  }, [casoEmFoco, tentativa])
+
+  const tentarNovamente = () => {
+    setFalhou(false)
+    setPronto(false)
+    setTotal(null)
+    setTentativa((atual) => atual + 1)
+  }
 
   return (
     <div className="flex flex-col gap-2">
@@ -127,7 +162,19 @@ export function MapaPrejuizo() {
         </div>
       </div>
       <div className="text-muted-foreground flex flex-wrap items-center justify-between gap-2 text-xs">
-        <span>{total === null ? 'Carregando ocorrências…' : `${total} ocorrências no mapa`}</span>
+        <span>
+          {falhou
+            ? 'Não foi possível carregar o mapa.'
+            : total === null
+              ? 'Carregando ocorrências…'
+              : `${total} ocorrências no mapa`}
+          {casoAusente && ` · Caso ${casoEmFoco} não encontrado`}
+          {falhou && (
+            <Button variant="outline" size="xs" className="ml-2" onClick={tentarNovamente}>
+              Tentar novamente
+            </Button>
+          )}
+        </span>
         <span className="flex items-center gap-2">
           Menos
           <span className="h-2 w-32 rounded-full" style={{ background: GRADIENTE }} />

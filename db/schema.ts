@@ -57,7 +57,6 @@ export type MensagemWhatsapp = typeof mensagensWhatsapp.$inferSelect;
 export type NovaMensagemWhatsapp = typeof mensagensWhatsapp.$inferInsert;
 export type TarefaAnalise = typeof tarefasAnalise.$inferSelect;
 
-// Rotas cadastradas ("Origem → Destino"), cada uma com o traçado da rodovia em pontos [latitude, longitude].
 export const rotas = sqliteTable("rotas", {
   id: integer("id").primaryKey({ autoIncrement: true }),
   nome: text("nome").notNull().unique(),

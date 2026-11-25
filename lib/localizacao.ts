@@ -12,10 +12,6 @@ function sorteioDe(semente: string) {
 
 const arredondar = (grau: number) => Math.round(grau * 100000) / 100000;
 
-/**
- * Ponto sobre o traçado da rota, perto da origem com mais frequência e com um pequeno desvio para os casos não caírem no mesmo ponto.
- * Com `semente`, o resultado é sempre o mesmo para ela.
- */
 export function localNaEstrada(caminho: [number, number][], semente?: string): Local {
   const sorteio = semente === undefined ? Math.random : sorteioDe(semente);
   const posicao = sorteio() ** 1.5 * (caminho.length - 1);

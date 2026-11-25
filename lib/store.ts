@@ -1,7 +1,7 @@
 // Persistência dos casos no Cloudflare D1 (tabela `casos`).
 import 'server-only'
 
-import { count, desc, eq } from 'drizzle-orm'
+import { count, desc, eq, sql } from 'drizzle-orm'
 
 import { casos } from '@/db/schema'
 import { getDb } from '@/lib/db'
@@ -24,7 +24,16 @@ import {
 import { armazenarEvidencias, guardarArquivo } from './evidencias'
 import { carregarTracados, localNaRota, obterRota } from './rotas'
 import { CASOS_SEMENTE } from './semente'
-import type { CampoRevisavel, Caso, Evidencia, OcorrenciaEzworker, PaginaCasos, StatusCaso, TipoEvidencia } from './types'
+import type {
+  CampoRevisavel,
+  Caso,
+  Evidencia,
+  OcorrenciaEzworker,
+  PaginaCasos,
+  StatusCaso,
+  TipoEvidencia,
+  TipoOcorrencia,
+} from './types'
 
 const PRIMEIRO_NUMERO = 1040
 
@@ -81,6 +90,7 @@ async function inserir(o: OcorrenciaEzworker): Promise<Caso> {
     .returning({ seq: casos.seq })
 
   if (!linha) return base // id do ezworker já recebido antes (reenvio)
+  pontosEmCache = undefined
 
   const id = o.id ?? `OC-${PRIMEIRO_NUMERO + linha.seq}`
   const caso: Caso = { ...base, id }
@@ -107,20 +117,36 @@ async function semearSeVazio() {
   for (const o of CASOS_SEMENTE) await inserir({ ...o, local: await localNaRota(o.contexto?.rota, o.id) })
 }
 
-/** Um ponto por caso para o mapa de calor; caso antigo sem coordenada cai num ponto da rota dele. */
-export async function listarPontos() {
+const VALIDADE_PONTOS_MS = 5000
+let pontosEmCache: { validoAte: number; pontos: ReturnType<typeof consultarPontos> } | undefined
+
+export function listarPontos() {
+  if (!pontosEmCache || pontosEmCache.validoAte < Date.now()) {
+    const pontos = consultarPontos()
+    pontosEmCache = { validoAte: Date.now() + VALIDADE_PONTOS_MS, pontos }
+    pontos.catch(() => (pontosEmCache = undefined))
+  }
+  return pontosEmCache.pontos
+}
+
+async function consultarPontos() {
   await semearSeVazio()
   const db = await getDb()
   const linhas = await db
-    .select({ id: casos.id, latitude: casos.latitude, longitude: casos.longitude, dados: casos.dados })
+    .select({
+      id: casos.id,
+      latitude: casos.latitude,
+      longitude: casos.longitude,
+      tipo: sql<TipoOcorrencia>`json_extract(${casos.dados}, '$.tipo')`,
+      rota: sql<string | null>`json_extract(${casos.dados}, '$.contexto.rota')`,
+      prejuizo: sql<number>`coalesce(json_extract(${casos.dados}, '$.contexto.custo_ocorrencia'), json_extract(${casos.dados}, '$.contexto.valor_nf'), 0)`,
+    })
     .from(casos)
   const localNoTracado = await carregarTracados()
-  return linhas.map(({ id, latitude, longitude, dados }) => ({
-    id,
-    tipo: dados.tipo,
-    rota: dados.contexto?.rota ?? null,
-    prejuizo: dados.contexto?.custo_ocorrencia ?? dados.contexto?.valor_nf ?? 0,
-    local: latitude !== null && longitude !== null ? { latitude, longitude } : localNoTracado(dados.contexto?.rota, id),
+  return linhas.map(({ latitude, longitude, rota, ...ponto }) => ({
+    ...ponto,
+    rota,
+    local: latitude !== null && longitude !== null ? { latitude, longitude } : localNoTracado(rota ?? undefined, ponto.id),
   }))
 }
 

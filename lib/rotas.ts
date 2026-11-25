@@ -1,5 +1,5 @@
 import "server-only";
-import { count, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { rotas } from "@/db/schema";
 import { getDb } from "@/lib/db";
 import { localNaEstrada } from "@/lib/localizacao";
@@ -10,9 +10,7 @@ const ROTA_PADRAO = "Campinas → São Paulo";
 
 async function semearRotasQueFaltam() {
   const db = await getDb();
-  const [{ total }] = await db.select({ total: count() }).from(rotas);
-  if (total >= Object.keys(RODOVIAS).length * 2) return;
-
+  const existentes = new Set((await db.select({ nome: rotas.nome }).from(rotas)).map((rota) => rota.nome));
   const linhas = Object.entries(RODOVIAS).flatMap(([par, tracado]) => {
     const [origem, destino] = par.split("|");
     return [
@@ -20,7 +18,9 @@ async function semearRotasQueFaltam() {
       { nome: `${destino} → ${origem}`, origem: destino, destino: origem, tracado: [...tracado].reverse() },
     ];
   });
-  for (const linha of linhas) await db.insert(rotas).values(linha).onConflictDoNothing();
+  for (const linha of linhas.filter((linha) => !existentes.has(linha.nome))) {
+    await db.insert(rotas).values(linha).onConflictDoNothing();
+  }
 }
 
 export async function obterRota(nome: string | undefined) {
@@ -33,7 +33,6 @@ export async function obterRota(nome: string | undefined) {
   return rota;
 }
 
-/** Todos os traçados de uma vez, para calcular muitos pontos sem uma consulta por caso. */
 export async function carregarTracados() {
   await semearRotasQueFaltam();
   const db = await getDb();
@@ -43,7 +42,6 @@ export async function carregarTracados() {
     localNaEstrada(tracados.get(nome ?? "") ?? tracados.get(ROTA_PADRAO)!, semente);
 }
 
-/** Ponto sobre a rodovia da rota cadastrada; rota sem cadastro cai na rota padrão. */
 export async function localNaRota(nome: string | undefined, semente?: string): Promise<Local> {
   const rota = (await obterRota(nome)) ?? (await obterRota(ROTA_PADRAO));
   return localNaEstrada(rota.tracado, semente);
