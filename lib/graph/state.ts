@@ -56,8 +56,13 @@ export type Decision = {
 
 /** Value sent to Command({ resume }) when the analyst acts on a paused incident. */
 export type ReviewAnswer =
-  | { action: "confirm"; reviewer: string }
-  | { action: "correct"; reviewer: string; fields: Partial<Extraction> };
+  | { action: "confirm"; reviewer: string; authorizeBilling?: boolean }
+  | { action: "correct"; reviewer: string; fields: Partial<Extraction>; authorizeBilling?: boolean };
+
+/** Value sent to Command({ resume }) when a person decides on charging someone. */
+export type AuthorizationAnswer = { action: "authorize" | "decline"; reviewer: string; reason?: string };
+
+export type BillingAuthorization = { decision: "authorized" | "declined"; by: string; at: string; reason: string | null };
 
 /** Value sent to Command({ resume }) when evidence arrives for an incident waiting for it. */
 export type EvidenceAnswer = { action: "evidence_received"; stillMissing: string[] };
@@ -88,6 +93,10 @@ export const IncidentState = Annotation.Root({
   reviewReasons: replace<string[]>(() => []),
   /** Set once a human confirmed or corrected the incident. */
   reviewed: replace<boolean>(() => false),
+  /** The reviewer also authorized the charge in the same action ("Aprovar tratativa"). */
+  authorizedWithReview: replace<{ by: string; at: string } | null>(() => null),
+  /** A person's decision on charging someone. Nothing is charged without it. */
+  billingAuthorization: replace<BillingAuthorization | null>(() => null),
   status: replace<IncidentStatus | null>(() => null),
   incidentId: replace<number | null>(() => null),
   /** Id of the row in `casos` (first version of the app) mirrored from this incident. */

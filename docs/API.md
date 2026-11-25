@@ -69,7 +69,7 @@ Opções dos filtros: `routes`, `carriers`, `drivers` (`id`, `name`), `hours` e 
 ### `GET /api/incidents/:number` (ex.: `OC-1047`)
 Campos da ocorrência, mais:
 - `graph.decisions`: a trilha "por que o sistema decidiu isso" (`node`, `rule`, `reason`, `at`);
-- `graph.pausedAt` / `graph.pausedLabel`: onde o grafo está esperando (revisão ou evidência) ou `null`;
+- `graph.pausedAt` / `graph.pausedLabel`: onde o grafo está esperando (evidência, revisão ou autorização da cobrança) ou `null`;
 - `graph.processingMs` e `graph.steps`: tempo de cada passo do grafo (observabilidade);
 - `case`: o caso da primeira versão do app, com evidências (hash SHA-256, data), transcrição e confiança por campo.
 
@@ -79,7 +79,8 @@ As telas atuais continuam usando as rotas que já existiam; o grafo foi ligado a
 
 | Ação na tela | Rota existente | O que acontece no grafo |
 |---|---|---|
-| Aprovar | `POST /api/ocorrencias/:id` `{ "acao": "aprovar" }` | Retoma a pausa de revisão com os campos como a analista deixou; refaz NF, custo e pagador |
+| Aprovar tratativa | `POST /api/ocorrencias/:id` `{ "acao": "aprovar" }` | Na pausa de revisão: confirma os campos, refaz NF, custo e pagador e autoriza a cobrança. Na pausa de autorização: autoriza a cobrança |
+| Autorizar ou recusar a cobrança | `POST /api/incidents/:number/authorization` `{ "decision": "authorize" \| "decline", "reviewer": "Ana", "reason"?: "..." }` | Recusa exige `reason`. `409` se a ocorrência não estiver aguardando autorização |
 | Anexar evidência | `POST /api/ocorrencias/:id/evidencias` | Quando não falta mais nada, retoma a pausa de evidência |
 
 ## Grafo
@@ -96,7 +97,7 @@ Os seis critérios de qualidade, medidos na hora (a bateria de ataques roda a ca
 |---|---|
 | `schema` | ocorrências válidas e rejeitadas, `savedWithoutValidation` (deve ser 0) |
 | `guardrails` | `blocked` de `total` ataques e o resultado de cada um |
-| `humanInTheLoop` | enviadas à revisão (%), aguardando, revisadas por pessoa, `passedWithoutHuman` (deve ser 0) e os motivos |
+| `humanInTheLoop` | enviadas à revisão (%), aguardando, revisadas por pessoa, `passedWithoutHuman` (deve ser 0), os motivos e `charges` (a cobrar, aguardando, autorizadas, recusadas e `withoutPersonAuthorizing`, que deve ser 0) |
 | `minimumAccess` | ferramentas do agente e `writeTools` (deve ser 0) |
 | `observability` | tempo de processamento por ocorrência (`processingMsP50`, `processingMsP95`) e por passo |
 | `personalData` | mascaramento nos 50 relatos plantados e `leaksInStoredOutput` (deve ser 0) |

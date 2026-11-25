@@ -129,7 +129,7 @@ CREATE TABLE `incidents` (
 	FOREIGN KEY (`carrier_id`) REFERENCES `carriers`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`driver_id`) REFERENCES `drivers`(`id`) ON UPDATE no action ON DELETE no action,
 	CONSTRAINT "incidents_type_check" CHECK(type in ('damage', 'loss', 'refusal', 'redelivery', 'discrepancy', 'accident', 'delay')),
-	CONSTRAINT "incidents_status_check" CHECK(status in ('awaiting_evidence', 'pending_review', 'registered', 'billed', 'recovered', 'lost')),
+	CONSTRAINT "incidents_status_check" CHECK(status in ('awaiting_evidence', 'pending_review', 'awaiting_authorization', 'authorized', 'not_authorized', 'registered', 'billed', 'recovered', 'lost')),
 	CONSTRAINT "incidents_payer_check" CHECK(payer is null or payer in ('insurer', 'carrier', 'shipper', 'absorbed'))
 );
 --> statement-breakpoint

@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "cf30d928-bdef-46c6-9c8c-0def0b9c7a73",
+  "id": "329f0bbf-2612-4588-b615-e73b0c4bada5",
   "prevId": "d7989cc3-4df8-4c9a-bbb3-c7f4c5d004dd",
   "tables": {
     "carriers": {
@@ -1009,7 +1009,7 @@
         },
         "incidents_status_check": {
           "name": "incidents_status_check",
-          "value": "status in ('awaiting_evidence', 'pending_review', 'registered', 'billed', 'recovered', 'lost')"
+          "value": "status in ('awaiting_evidence', 'pending_review', 'awaiting_authorization', 'authorized', 'not_authorized', 'registered', 'billed', 'recovered', 'lost')"
         },
         "incidents_payer_check": {
           "name": "incidents_payer_check",

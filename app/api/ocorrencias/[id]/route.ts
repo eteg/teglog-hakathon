@@ -1,5 +1,5 @@
 import { CAMPOS_REVISAVEIS } from "@/lib/regras";
-import { resumeReviewFromCase } from "@/lib/graph/case-review";
+import { approveFromCase } from "@/lib/graph/case-review";
 import { atualizarStatus, obter, revisarCampo } from "@/lib/store";
 import type { CampoRevisavel } from "@/lib/types";
 
@@ -23,9 +23,9 @@ export async function POST(req: Request, ctx: RouteContext<"/api/ocorrencias/[id
 
   let novo;
   if (acao === "aprovar") {
-    // The paused decision graph resumes with the fields as the analyst left them;
-    // it recalculates cost and payer before the approval is recorded.
-    await resumeReviewFromCase(id, "Analista");
+    // Resumes the decision graph: confirms the reviewed fields and/or authorizes the charge.
+    // Nothing is charged without this click.
+    await approveFromCase(id, "Analista");
     const atual = (await obter(id)) ?? c;
     novo = await atualizarStatus(id, "aprovado", "Cliente aprovou a tratativa", atual.decisao.motivo);
   } else if (acao === "responder") {

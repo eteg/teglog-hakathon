@@ -1,5 +1,5 @@
 // Records how long each graph node took (node_runs, quality criterion 8.5). Pause nodes
-// (evidence, human review) are flagged so processing time is not mixed with waiting time.
+// (evidence, human review, charge authorization) are flagged so processing time is not mixed with waiting time.
 import "server-only";
 
 import { nodeRuns } from "@/db/schema";
@@ -7,7 +7,7 @@ import { getDb } from "@/lib/db";
 
 type NodeFn<S, U> = (state: S) => Promise<U> | U;
 
-const WAITING_NODES = new Set(["await_evidence", "await_review"]);
+const WAITING_NODES = new Set(["await_evidence", "await_review", "await_authorization"]);
 
 export function traced<S extends { threadId: string }, U>(node: string, fn: NodeFn<S, U>): NodeFn<S, U> {
   return async (state: S) => {

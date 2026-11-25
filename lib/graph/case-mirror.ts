@@ -23,9 +23,18 @@ const GRAPH_STATUSES: StatusCaso[] = ["novo", "aguardando_evidencia", "aguardand
 
 function caseStatus(s: IncidentStateType): StatusCaso {
   if (s.status === "awaiting_evidence") return "aguardando_evidencia";
-  if (s.status === "pending_review") return "aguardando_aprovacao";
+  if (s.status === "pending_review" || s.status === "awaiting_authorization") return "aguardando_aprovacao";
+  if (s.status === "authorized") return "aprovado";
   return "novo";
 }
+
+const STATUS_TITLE: Partial<Record<NonNullable<IncidentStateType["status"]>, string>> = {
+  awaiting_evidence: "aguarda evidência",
+  pending_review: "aguarda revisão",
+  awaiting_authorization: "aguarda autorização da cobrança",
+  authorized: "cobrança autorizada",
+  not_authorized: "cobrança não autorizada",
+};
 
 /** Creates the case through the existing intake (copies evidence to R2, numbers it OC-xxxx). */
 export async function createCase(source: OcorrenciaEzworker): Promise<string> {
@@ -48,7 +57,8 @@ export async function patchCase(caseId: string, s: IncidentStateType): Promise<v
       ...caso.decisao,
       pagador,
       motivo: payerDecision?.reason ?? caso.decisao.motivo,
-      requer_aprovacao: s.status === "pending_review",
+      // The screen shows "Aprovar tratativa" when this is true: data review or charge authorization.
+      requer_aprovacao: s.status === "pending_review" || s.status === "awaiting_authorization",
       motivo_aprovacao: s.reviewReasons.length ? s.reviewReasons.join("; ") : undefined,
     },
     contexto: {
@@ -62,8 +72,11 @@ export async function patchCase(caseId: string, s: IncidentStateType): Promise<v
       ...caso.timeline,
       {
         em: new Date().toISOString(),
-        titulo: `Grafo de decisão: ${s.status === "pending_review" ? "aguarda revisão" : s.status === "awaiting_evidence" ? "aguarda evidência" : "registrado"}`,
-        detalhe: payerDecision?.reason,
+        titulo: `Grafo de decisão: ${(s.status && STATUS_TITLE[s.status]) ?? "registrado"}`,
+        detalhe:
+          s.billingAuthorization
+            ? `${s.billingAuthorization.decision === "authorized" ? "Autorizada" : "Não autorizada"} por ${s.billingAuthorization.by}${s.billingAuthorization.reason ? `: ${s.billingAuthorization.reason}` : ""}`
+            : payerDecision?.reason,
       },
     ],
   };

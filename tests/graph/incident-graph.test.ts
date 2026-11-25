@@ -46,16 +46,48 @@ function ezworker(overrides: Partial<OcorrenciaEzworker> = {}): OcorrenciaEzwork
 const thread = (id: string) => ({ configurable: { thread_id: id } });
 
 describe("incident graph", () => {
-  it("a clean occurrence is costed, assigned a payer and registered without pausing", async () => {
+  it("a clean occurrence is costed and assigned a payer, then waits for a person to authorize the charge", async () => {
     const { ports, calls } = fakePorts();
     const graph = buildIncidentGraph(ports, new MemorySaver());
     const out = await graph.invoke({ threadId: "ez-1", source: ezworker() }, thread("ez-1"));
-    expect(out.status).toBe("registered");
-    expect(out.caseId).toBe("OC-1041");
-    expect(calls.saves).toHaveLength(1);
     expect(out.cost?.cost).toBe(4_160);
     expect(out.payer?.payer).toBe("insurer");
-    expect((await graph.getState(thread("ez-1"))).next).toEqual([]);
+    expect(out.caseId).toBe("OC-1041");
+    expect(calls.saves).toHaveLength(1);
+    // Low value and confident, so no data review; but charging still needs a person.
+    expect(out.decisions.find((d) => d.node === "decide_review")?.rule).toBe("REVIEW_NOT_REQUIRED");
+    expect(out.status).toBe("awaiting_authorization");
+    expect((await graph.getState(thread("ez-1"))).next).toEqual(["await_authorization"]);
+  });
+
+  it("nothing is charged until a person authorizes; the authorization is recorded", async () => {
+    const { ports, calls } = fakePorts();
+    const graph = buildIncidentGraph(ports, new MemorySaver());
+    await graph.invoke({ threadId: "ez-a", source: ezworker() }, thread("ez-a"));
+    const out = await graph.invoke(new Command({ resume: { action: "authorize", reviewer: "Ana" } }), thread("ez-a"));
+    expect(out.status).toBe("authorized");
+    expect(out.billingAuthorization).toMatchObject({ decision: "authorized", by: "Ana" });
+    expect(out.decisions.at(-1)?.rule).toBe("HUMAN_AUTHORIZED");
+    expect(calls.saves.at(-1)?.status).toBe("authorized");
+    expect((await graph.getState(thread("ez-a"))).next).toEqual([]);
+  });
+
+  it("a person can decline the charge, with a reason", async () => {
+    const graph = buildIncidentGraph(fakePorts().ports, new MemorySaver());
+    await graph.invoke({ threadId: "ez-d", source: ezworker() }, thread("ez-d"));
+    const out = await graph.invoke(
+      new Command({ resume: { action: "decline", reviewer: "Ana", reason: "cliente fiel, vamos absorver" } }),
+      thread("ez-d"),
+    );
+    expect(out.status).toBe("not_authorized");
+    expect(out.billingAuthorization).toMatchObject({ decision: "declined", reason: "cliente fiel, vamos absorver" });
+  });
+
+  it("with nothing to charge (delay, no cost) it registers without pausing", async () => {
+    const graph = buildIncidentGraph(fakePorts().ports, new MemorySaver());
+    const out = await graph.invoke({ threadId: "ez-late", source: ezworker({ tipo: "atraso", subtipo: "rodovia_interditada" }) }, thread("ez-late"));
+    expect(out.status).toBe("registered");
+    expect(out.decisions.find((d) => d.node === "decide_billing")?.rule).toBe("NOTHING_TO_CHARGE");
   });
 
   it("masks personal data before saving (8.6)", async () => {
@@ -76,11 +108,13 @@ describe("incident graph", () => {
     expect((await graph.getState(thread("ez-3"))).next).toEqual(["await_review"]);
     expect(calls.saves).toHaveLength(1);
 
+    // "Aprovar tratativa": confirms the corrected data and authorizes the charge in one click.
     const resumed = await graph.invoke(
-      new Command({ resume: { action: "correct", reviewer: "Ana", fields: { affected_volumes: 1 } } }),
+      new Command({ resume: { action: "correct", reviewer: "Ana", fields: { affected_volumes: 1 }, authorizeBilling: true } }),
       thread("ez-3"),
     );
-    expect(resumed.status).toBe("registered");
+    expect(resumed.status).toBe("authorized");
+    expect(resumed.billingAuthorization?.by).toBe("Ana");
     expect(resumed.cost?.cost).toBe(2_080);
     expect(resumed.decisions.some((d) => d.rule === "HUMAN_CORRECTED")).toBe(true);
     expect(calls.saves).toHaveLength(2);
@@ -98,7 +132,7 @@ describe("incident graph", () => {
     expect((await graph.getState(thread("ez-4"))).next).toEqual(["await_evidence"]);
 
     const resumed = await graph.invoke(new Command({ resume: { action: "evidence_received", stillMissing: [] } }), thread("ez-4"));
-    expect(resumed.status).toBe("registered");
+    expect(resumed.status).toBe("awaiting_authorization");
   });
 
   it("an instruction written on the photo changes nothing but the review flag (8.2)", async () => {

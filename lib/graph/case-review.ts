@@ -4,13 +4,23 @@ import "server-only";
 import { ezworkerToExtraction } from "@/lib/ai/ezworker-adapter";
 import { obter } from "@/lib/store";
 
-import { resumeIncident, threadOfCase } from "./run";
+import { pausedAt, resumeIncident, threadOfCase } from "./run";
 
-/** Approve on F5/F3: resume the review pause with the case fields as the analyst left them. */
-export async function resumeReviewFromCase(caseId: string, reviewer: string) {
+/**
+ * "Aprovar tratativa" on the current screens. One click, two meanings depending on where the graph
+ * waits: at the data review it confirms the fields as the analyst left them AND authorizes the
+ * charge; at the charge authorization it authorizes it. Either way a person is on record.
+ */
+export async function approveFromCase(caseId: string, reviewer: string) {
   const threadId = await threadOfCase(caseId);
+  if (!threadId) return null;
+  const at = await pausedAt(threadId);
+  if (at === "await_authorization") {
+    return safely(caseId, () => resumeIncident(threadId, "await_authorization", { action: "authorize", reviewer }));
+  }
+  if (at !== "await_review") return null;
   const caso = await obter(caseId);
-  if (!threadId || !caso) return null;
+  if (!caso) return null;
   const current = ezworkerToExtraction(caso);
   // Only the fields an analyst can correct on F5 (lib/regras CAMPOS_REVISAVEIS).
   const fields = {
@@ -23,7 +33,14 @@ export async function resumeReviewFromCase(caseId: string, reviewer: string) {
     destination_city: current.destination_city,
     destination_state: current.destination_state,
   };
-  return safely(caseId, () => resumeIncident(threadId, "await_review", { action: "correct", reviewer, fields }));
+  return safely(caseId, () => resumeIncident(threadId, "await_review", { action: "correct", reviewer, fields, authorizeBilling: true }));
+}
+
+/** Authorize or decline the charge explicitly (API; the screens only have "approve" today). */
+export async function decideChargeFromCase(caseId: string, decision: "authorize" | "decline", reviewer: string, reason?: string) {
+  const threadId = await threadOfCase(caseId);
+  if (!threadId || (await pausedAt(threadId)) !== "await_authorization") return null;
+  return resumeIncident(threadId, "await_authorization", { action: decision, reviewer, reason });
 }
 
 /** Evidence attached on F3 and nothing missing: resume the evidence pause. */

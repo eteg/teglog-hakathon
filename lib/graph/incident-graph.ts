@@ -1,7 +1,8 @@
 // The incident graph (B3). The occurrence arrives already extracted by ezworker
 // (POST /api/webhook/ezworker); the graph only decides. Nodes orchestrate: decisions come
 // from lib/rules, outside access from IncidentPorts. See docs/PLANO_DESENVOLVIMENTO.md, section 2.
-// Two pauses (interrupt): waiting for evidence and waiting for human review.
+// Three pauses (interrupt): waiting for evidence, waiting for human review and waiting for a
+// person to authorize charging someone. Rules only recommend; nothing is charged without a person.
 import { END, START, StateGraph, interrupt } from "@langchain/langgraph";
 import type { BaseCheckpointSaver } from "@langchain/langgraph-checkpoint";
 
@@ -17,6 +18,7 @@ import type { RuleResult } from "@/lib/rules/types";
 
 import type { IncidentPorts } from "./ports";
 import {
+  type AuthorizationAnswer,
   type Decision,
   type EnrichedDelivery,
   type EvidenceAnswer,
@@ -171,6 +173,54 @@ export function buildIncidentGraph(
     };
   });
 
+  // Who pays is a recommendation of the rules. Charging someone always needs a person,
+  // whatever the value: the graph stops here until someone authorizes or declines it.
+  const billing = node("decide_billing", (s) => {
+    if (s.status !== "registered") return {};
+    const payer = s.payer?.payer;
+    const amount = s.cost?.cost ?? 0;
+    const chargeable = payer !== undefined && payer !== "absorbed" && amount > 0;
+    const input = { payer: payer ?? null, cost: amount };
+    if (!chargeable) {
+      return {
+        decisions: [
+          decision("decide_billing", input, {
+            result: { chargeable: false },
+            rule: "NOTHING_TO_CHARGE",
+            reason: payer === "absorbed" ? "Prejuízo absorvido: não há a quem cobrar." : "Sem custo a cobrar.",
+          }),
+        ],
+      };
+    }
+    const whom = { insurer: "à seguradora", carrier: "à transportadora", shipper: "ao embarcador" }[payer as "insurer" | "carrier" | "shipper"];
+    const amountText = amount.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+    if (s.authorizedWithReview) {
+      const auth = { decision: "authorized" as const, by: s.authorizedWithReview.by, at: s.authorizedWithReview.at, reason: null };
+      return {
+        status: "authorized" as const,
+        billingAuthorization: auth,
+        decisions: [
+          decision("decide_billing", input, {
+            result: { chargeable: true, authorizedBy: auth.by },
+            rule: "HUMAN_AUTHORIZED",
+            reason: `${auth.by} autorizou a cobrança de ${amountText} ${whom} ao aprovar a revisão.`,
+          }),
+        ],
+      };
+    }
+    return {
+      status: "awaiting_authorization" as const,
+      reviewReasons: [`cobrança de ${amountText} ${whom} precisa de autorização`],
+      decisions: [
+        decision("decide_billing", input, {
+          result: { chargeable: true },
+          rule: "BILLING_NEEDS_AUTHORIZATION",
+          reason: `Recomendação: cobrar ${amountText} ${whom}. Nada é cobrado até uma pessoa autorizar.`,
+        }),
+      ],
+    };
+  });
+
   const save = node("save_incident", async (s) => {
     // Second barrier (8.1): nothing invalid reaches the database.
     ExtractionSchema.parse(s.extraction);
@@ -184,6 +234,30 @@ export function buildIncidentGraph(
     return { missingEvidence: answer.stillMissing, status: null };
   });
 
+  const awaitAuthorization = node("await_authorization", (s) => {
+    const answer = interrupt<{ kind: "authorization"; payer: string | null; cost: number }, AuthorizationAnswer>({
+      kind: "authorization",
+      payer: s.payer?.payer ?? null,
+      cost: s.cost?.cost ?? 0,
+    });
+    const authorized = answer.action === "authorize";
+    const auth = { decision: authorized ? ("authorized" as const) : ("declined" as const), by: answer.reviewer, at: now(), reason: answer.reason ?? null };
+    return {
+      status: authorized ? ("authorized" as const) : ("not_authorized" as const),
+      billingAuthorization: auth,
+      reviewReasons: [],
+      decisions: [
+        decision("await_authorization", { reviewer: answer.reviewer }, {
+          result: auth,
+          rule: authorized ? "HUMAN_AUTHORIZED" : "HUMAN_DECLINED",
+          reason: authorized
+            ? `${answer.reviewer} autorizou a cobrança.`
+            : `${answer.reviewer} não autorizou a cobrança${answer.reason ? `: ${answer.reason}` : ""}.`,
+        }),
+      ],
+    };
+  });
+
   const awaitReview = node("await_review", (s) => {
     const answer = interrupt<{ kind: "review"; reasons: string[] }, ReviewAnswer>({ kind: "review", reasons: s.reviewReasons });
     const fields = answer.action === "correct" ? answer.fields : {};
@@ -193,6 +267,7 @@ export function buildIncidentGraph(
     return {
       extraction: { ...s.extraction!, ...fields },
       reviewed: true,
+      authorizedWithReview: answer.authorizeBilling ? { by: answer.reviewer, at: now() } : null,
       decisions: [
         decision("await_review", { reviewer: answer.reviewer }, {
           result: { action: answer.action, changed },
@@ -217,9 +292,11 @@ export function buildIncidentGraph(
     .addNode(...payer)
     .addNode(...evidence)
     .addNode(...review)
+    .addNode(...billing)
     .addNode(...save)
     .addNode(...awaitEvidence)
     .addNode(...awaitReview)
+    .addNode(...awaitAuthorization)
     .addEdge(START, "from_ezworker")
     .addEdge("from_ezworker", "mask_pii")
     .addEdge("mask_pii", "validate_schema")
@@ -234,12 +311,21 @@ export function buildIncidentGraph(
     .addEdge("calculate_cost", "decide_payer")
     .addEdge("decide_payer", "decide_evidence")
     .addEdge("decide_evidence", "decide_review")
-    .addEdge("decide_review", "save_incident")
+    .addEdge("decide_review", "decide_billing")
+    .addEdge("decide_billing", "save_incident")
     .addConditionalEdges(
       "save_incident",
-      (s) => (s.status === "awaiting_evidence" ? "await_evidence" : s.status === "pending_review" ? "await_review" : END),
-      ["await_evidence", "await_review", END],
+      (s) =>
+        s.status === "awaiting_evidence"
+          ? "await_evidence"
+          : s.status === "pending_review"
+            ? "await_review"
+            : s.status === "awaiting_authorization"
+              ? "await_authorization"
+              : END,
+      ["await_evidence", "await_review", "await_authorization", END],
     )
+    .addEdge("await_authorization", "save_incident")
     .addEdge("await_evidence", "decide_evidence")
     .addEdge("await_review", "normalize")
     .compile({ checkpointer });

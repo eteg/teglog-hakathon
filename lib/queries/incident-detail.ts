@@ -11,6 +11,7 @@ import { obter } from "@/lib/store";
 const PAUSE_LABEL: Record<string, string> = {
   await_review: "aguarda revisão humana",
   await_evidence: "aguarda evidência do motorista",
+  await_authorization: "aguarda autorização da cobrança",
 };
 
 export async function incidentDetail(number: string) {

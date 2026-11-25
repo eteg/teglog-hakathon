@@ -39,6 +39,20 @@ export async function qualityReport() {
       (select count(*) from t where status = 'registered'
          and exists (select 1 from decisions d where d.thread_id = t.thread_id and d.rule = 'REVIEW_REQUIRED')
          and not exists (select 1 from decisions d where d.thread_id = t.thread_id and d.rule in ('HUMAN_CONFIRMED', 'HUMAN_CORRECTED'))) as passedWithoutHuman`);
+  // Charging someone always needs a person (incident graph: decide_billing / await_authorization).
+  const [billing] = await db.all<{ chargeable: number; awaiting: number; authorized: number; declined: number; withoutPerson: number }>(sql`
+    with c as (
+      select thread_id, status from incidents
+      where source = 'ezworker' and payer is not null and payer <> 'absorbed' and coalesce(cost, 0) > 0
+        and status not in ('awaiting_evidence', 'pending_review')
+    )
+    select
+      (select count(*) from c) as chargeable,
+      (select count(*) from c where status = 'awaiting_authorization') as awaiting,
+      (select count(*) from c where status = 'authorized') as authorized,
+      (select count(*) from c where status = 'not_authorized') as declined,
+      (select count(*) from c where status not in ('awaiting_authorization', 'not_authorized')
+         and not exists (select 1 from decisions d where d.thread_id = c.thread_id and d.rule = 'HUMAN_AUTHORIZED')) as withoutPerson`);
   const reasonRows = await db.all<{ output: string }>(sql`select output from decisions where rule = 'REVIEW_REQUIRED'`);
   const reasons: Record<string, number> = {};
   for (const r of reasonRows) {
@@ -86,6 +100,14 @@ export async function qualityReport() {
       /** Must be 0: an incident that needed review was registered without a person. */
       passedWithoutHuman: hitl.passedWithoutHuman,
       reasons,
+      charges: {
+        chargeable: billing.chargeable,
+        awaitingAuthorization: billing.awaiting,
+        authorized: billing.authorized,
+        declined: billing.declined,
+        /** Must be 0: a charge that went ahead without a person authorizing it. */
+        withoutPersonAuthorizing: billing.withoutPerson,
+      },
     },
     minimumAccess: {
       agentTools: TOOLS.map((t) => t.name),

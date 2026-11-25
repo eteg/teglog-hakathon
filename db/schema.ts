@@ -87,6 +87,10 @@ export const INCIDENT_SOURCES = ["ezworker", "seed"] as const;
 export const INCIDENT_STATUSES = [
   "awaiting_evidence",
   "pending_review",
+  /** Someone is to be charged: a person must authorize it, whatever the value. */
+  "awaiting_authorization",
+  "authorized",
+  "not_authorized",
   "registered",
   "billed",
   "recovered",

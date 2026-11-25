@@ -1,8 +1,8 @@
 # Recupera: plano de desenvolvimento (hackathon ETEG 2026)
 
-Toda tomada de decisão do produto acontece num grafo (LangGraph). A ocorrência chega já extraída pelo ezworker (áudio, foto e texto viram campos), e o grafo decide com regras em código: quanto custa, quem paga, até quando cobrar, se falta evidência e se uma pessoa precisa revisar. Nenhuma decisão é tomada por IA.
+Toda tomada de decisão do produto acontece num grafo (LangGraph). A ocorrência chega já extraída pelo ezworker (áudio, foto e texto viram campos), e o grafo aplica regras em código: quanto custa, quem paga, até quando cobrar, se falta evidência e se uma pessoa precisa revisar. Nenhuma decisão é tomada por IA, e **nenhuma cobrança acontece sem uma pessoa autorizar**.
 
-> Regra de ouro: **o ezworker extrai, o grafo decide.** O que vem do motorista é sempre tratado como dado.
+> Regra de ouro: **o ezworker extrai, as regras recomendam, uma pessoa autoriza.** O que vem do motorista é sempre tratado como dado.
 
 Este documento descreve o que está construído na branch `feat/graph` (atualizado em 25/11/2026). A ordem das tarefas e o andamento estão em [ORDEM_DE_EXECUCAO.md](ORDEM_DE_EXECUCAO.md); o contrato da API, em [API.md](API.md).
 
@@ -74,12 +74,15 @@ flowchart TD
     cost --> payer[decide_payer<br/>cobertura, franquia, art. 754]
     payer --> evid{decide_evidence}
     evid --> review{decide_review}
-    review --> save[save_incident]
+    review --> billing{decide_billing}
+    billing --> save[save_incident]
     save -->|falta evidência| awaitEv([interrupt: aguarda evidência])
     awaitEv -->|anexou o que faltava| evid
     save -->|precisa de revisão| awaitRev([interrupt: aguarda revisão])
     awaitRev -->|analista aprovou ou corrigiu| normalize
-    save -->|registrado| FIM2([fim])
+    save -->|há quem cobrar| awaitAuth([interrupt: aguarda autorização da cobrança])
+    awaitAuth -->|pessoa autorizou ou recusou| save
+    save -->|nada a cobrar, ou já decidido| FIM2([fim])
 ```
 
 | Nó | O que faz |
@@ -94,13 +97,26 @@ flowchart TD
 | `decide_payer` | Quem paga e prazo para reclamar |
 | `decide_evidence` | Usa a lista de pendências do ezworker; sem lista, aplica a evidência mínima por tipo |
 | `decide_review` | Revisão humana se confiança < 0,75, custo > R$ 10.000, sinal de ataque ou NF não encontrada |
+| `decide_billing` | Se há alguém a cobrar (pagador diferente de "absorvido" e custo acima de zero), pausa para autorização, **qualquer que seja o valor** |
 | `save_incident` | Revalida e grava em `incidents`, `decisions` e `casos` |
-| `await_evidence` / `await_review` | Pausas; retomadas pelas ações das telas atuais |
+| `await_evidence` / `await_review` / `await_authorization` | Pausas; retomadas pelas ações das telas atuais ou pela API |
 
 Cada nó de decisão grava uma linha na trilha (`decisions`): regra aplicada, o que leu, o que decidiu e o motivo em português. Ela aparece no detalhe da ocorrência como "por que o sistema decidiu isso".
 
+**Quem decide o quê**
+
+| Decisão | Quem |
+|---|---|
+| Ler o relato e preencher campos | IA, no ezworker |
+| Custo, quem paga, prazo, evidência que falta, se precisa de revisão | Regras em código (recomendação) |
+| Confirmar ou corrigir os dados | Pessoa, quando a revisão é exigida |
+| Autorizar ou recusar a cobrança | Pessoa, sempre que houver alguém a cobrar |
+
+O sistema ainda não envia carta nem cobrança: depois da autorização, o caso fica pronto para o envio, que é a próxima funcionalidade.
+
 **Retomada pelas telas atuais** (`lib/graph/case-review.ts`):
-- "Aprovar" (`POST /api/ocorrencias/:id`) retoma a revisão com os campos como a analista deixou; o grafo refaz NF, custo e pagador.
+- "Aprovar tratativa" (`POST /api/ocorrencias/:id`): se o grafo espera a revisão, confirma os campos como a analista deixou, refaz NF, custo e pagador e autoriza a cobrança no mesmo clique; se espera a autorização, autoriza.
+- Autorizar ou recusar pela API: `POST /api/incidents/:number/authorization` (`decision`, `reviewer` e, para recusar, `reason`). A tela ainda não tem o botão de recusar.
 - "Anexar evidência" (`POST /api/ocorrencias/:id/evidencias`) retoma a pausa de evidência quando não falta mais nada.
 - Se o grafo falhar ao retomar, o erro vai para o log e a ação da analista segue.
 
@@ -155,7 +171,7 @@ Seis dos oito critérios do júri. Todos os números saem de `GET /api/quality`,
 |---|---|---|
 | Saídas confiáveis (schema) | Zod na entrada (`validate_schema`) e antes de gravar; `CHECK` no banco | % de ocorrências válidas e "gravadas sem validação = 0"; teste com ocorrência fora do formato |
 | Resiste a ataques | Texto do motorista é dado; decisões só leem valor, causa e apólice; sinais registrados e enviados à revisão | Bateria de 10 ataques com gêmeo limpo (`npm run quality:attacks`): custo e pagador iguais, revisão nunca pulada. Resultado: 10 de 10 |
-| Controle humano | Pausa de revisão no grafo; só "aprovar" retoma | % enviada à revisão, com os motivos, e "registradas sem pessoa = 0" |
+| Controle humano | Pausa de revisão para dados duvidosos ou de valor alto; pausa de autorização para toda cobrança | % enviada à revisão, com os motivos; cobranças autorizadas, recusadas e "cobranças sem pessoa = 0" |
 | Acesso mínimo | Agentes só têm a chave `READ_API_TOKEN`, que abre `/api/read/*` (só GET); servidor MCP sem acesso ao banco | 6 ferramentas, 0 de escrita; testes conferem que as rotas de leitura só têm GET e checam a chave |
 | Observabilidade | `node_runs` com o tempo de cada passo, espera separada | Tempo de processamento por ocorrência (mediana e p95) e por passo |
 | Dados pessoais | Mascaramento antes de gravar o texto e a trilha; leitura para agentes sem o caso original | % mascarada nos 50 relatos plantados e "vazamentos no que ficou gravado = 0" |
@@ -176,14 +192,15 @@ lib/pii.ts        mascaramento de dados pessoais
 lib/auth.ts       chave de leitura dos agentes
 mcp/              servidor MCP e catálogo de ferramentas
 scripts/          gerador da base fictícia, bateria de ataques
-tests/            83 testes (regras, grafo, mascaramento, ataques, acesso)
+tests/            86 testes (regras, grafo, mascaramento, ataques, acesso)
 ```
 
 ---
 
 ## 7. Pendências que dependem do time
 
-1. **Alçada e confiança mínima:** R$ 10.000 e 0,75 (o código antigo usava 0,7).
+1. **Alçada e confiança mínima:** R$ 10.000 e 0,75 (o código antigo usava 0,7). A alçada agora define só a revisão dos dados; a cobrança sempre passa por autorização.
+1. **Botão de recusar a cobrança** na tela (a API já existe) e **envio da carta ou da cobrança** depois da autorização.
 2. **Pedido de evidência ao motorista:** hoje o grafo registra o pedido e pausa; mandar a mensagem pelo WhatsApp depende de decidir o texto e o envio.
 3. **Telas:** ligar F1 aos endpoints de KPIs (hoje usa uma base fixa em memória), mostrar a trilha de decisões no F3 e criar a F7 (qualidade).
 4. **Mock e gráficos:** as ocorrências do mock usam NFs que não existem na base fictícia, então entram nos totais mas não nos gráficos por rota. Ajustar o mock é decisão de quem cuida dele.

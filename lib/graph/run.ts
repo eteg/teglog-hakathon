@@ -13,7 +13,7 @@ import type { OcorrenciaEzworker } from "@/lib/types";
 import { D1Checkpointer } from "./d1-checkpointer";
 import { d1Ports } from "./d1-ports";
 import { buildIncidentGraph } from "./incident-graph";
-import type { EvidenceAnswer, ReviewAnswer } from "./state";
+import type { AuthorizationAnswer, EvidenceAnswer, ReviewAnswer } from "./state";
 
 export async function incidentGraph() {
   const { env } = await getCloudflareContext({ async: true });
@@ -48,7 +48,11 @@ export async function threadOfCase(caseId: string): Promise<string | null> {
 }
 
 /** Resumes a thread only if it is paused at the expected node; returns null otherwise. */
-export async function resumeIncident(threadId: string, at: "await_review" | "await_evidence", value: ReviewAnswer | EvidenceAnswer) {
+export async function resumeIncident(
+  threadId: string,
+  at: "await_review" | "await_evidence" | "await_authorization",
+  value: ReviewAnswer | EvidenceAnswer | AuthorizationAnswer,
+) {
   if ((await pausedAt(threadId)) !== at) return null;
   return invoke(threadId, new Command({ resume: value }));
 }
