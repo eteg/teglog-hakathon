@@ -1,7 +1,7 @@
 import { FilaRevisao } from '@/components/fila-revisao'
 import { PageContainer, PageHeader } from '@/components/page-header'
 
-export const metadata = { title: 'Fila de revisão · Recupera' }
+export const metadata = { title: 'Fila de revisão' }
 
 export default function Revisao() {
   return (

@@ -18,7 +18,7 @@ export interface CenarioMock {
   canal: Canal
   /** Texto de exemplo (relato/transcrição) para preencher a tela de simulação. */
   textoExemplo: string
-  gerar: (e: EntradaMock) => OcorrenciaEzworker
+  gerar: (e: EntradaMock) => Omit<OcorrenciaEzworker, 'local'>
 }
 
 // ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ function instrucoesNoTexto(texto?: string): string[] | undefined {
 // ---------------------------------------------------------------------------
 // Catálogo
 
-const avariaEmbalagem = (e: EntradaMock): OcorrenciaEzworker => {
+const avariaEmbalagem = (e: EntradaMock): Omit<OcorrenciaEzworker, 'local'> => {
   const valor = entre(6_000, 22_000, 50)
   return {
     canal: e.canal,

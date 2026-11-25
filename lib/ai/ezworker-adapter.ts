@@ -35,9 +35,10 @@ export function splitRoute(route: string | undefined) {
   return parts.length === 2 ? { origin: end(parts[0]), destination: end(parts[1]) } : { origin: end(), destination: end() };
 }
 
-const confidenceOf = (o: OcorrenciaEzworker, key: string) => o.confianca?.[key] ?? 1;
+const confidenceOf = (o: Omit<OcorrenciaEzworker, "local">, key: string) => o.confianca?.[key] ?? 1;
 
-export function ezworkerToExtraction(o: OcorrenciaEzworker): Extraction {
+/** The location (`local`) is not part of the extraction; the map reads it from `casos`. */
+export function ezworkerToExtraction(o: Omit<OcorrenciaEzworker, "local">): Extraction {
   const { origin, destination } = splitRoute(o.contexto?.rota);
   const reason = [o.resumo, o.transcricao].filter(Boolean).join("\n") || o.subtipo;
   return {

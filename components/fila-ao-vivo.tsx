@@ -127,7 +127,7 @@ export function FilaAoVivo() {
     {
       id: 'id',
       title: 'Caso',
-      width: 124,
+      width: 120,
       sortable: true,
       render: (c) => (
         <span className="flex items-center gap-2">
@@ -136,10 +136,11 @@ export function FilaAoVivo() {
         </span>
       ),
     },
-    { id: 'tipo', title: 'Tipo', width: 112, sortable: true, render: (c) => <BadgeTipo tipo={c.tipo} /> },
+    { id: 'tipo', title: 'Tipo', width: 116, sortable: true, render: (c) => <BadgeTipo tipo={c.tipo} /> },
     {
       id: 'resumo',
       title: 'Resumo',
+      minWidth: 140,
       render: (c) => (
         <div className="flex min-w-0 flex-col">
           <span className="truncate" title={c.resumo}>
@@ -151,17 +152,17 @@ export function FilaAoVivo() {
         </div>
       ),
     },
-    { id: 'motorista', title: 'Motorista', width: 148, sortable: true, render: (c) => c.contexto?.motorista ?? '—' },
+    { id: 'motorista', title: 'Motorista', width: 124, sortable: true, render: (c) => c.contexto?.motorista ?? '—' },
     {
       id: 'valor',
       title: 'Custo',
-      width: 128,
+      width: 124,
       align: 'right',
       sortable: true,
       render: (c) => <span className="tabular-nums">{c.contexto?.valor_nf ? brl(c.contexto.valor_nf) : '—'}</span>,
     },
-    { id: 'responsavel', title: 'Responsável', width: 148, render: (c) => <BadgePagador pagador={c.decisao.pagador} /> },
-    { id: 'prazo', title: 'Prazo', width: 100, sortable: true, render: (c) => <Prazo iso={c.contexto?.prazo_protesto} /> },
+    { id: 'responsavel', title: 'Responsável', width: 168, render: (c) => <BadgePagador pagador={c.decisao.pagador} /> },
+    { id: 'prazo', title: 'Prazo', width: 112, sortable: true, render: (c) => <Prazo iso={c.contexto?.prazo_protesto} /> },
     {
       id: 'status',
       title: 'Status',

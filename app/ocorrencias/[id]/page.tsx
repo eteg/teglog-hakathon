@@ -5,6 +5,7 @@ import {
   Cloud,
   ExternalLink,
   Fingerprint,
+  MapPin,
   MessageSquareText,
   ScanSearch,
   TriangleAlert,
@@ -27,6 +28,8 @@ import {
   Field,
   Prazo,
   Section,
+  StatBox,
+  StatGrid,
   TextoSituacao,
 } from '@/components/ui'
 import { Button } from '@/components/ui/button'
@@ -74,7 +77,18 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
             Ocorrências da carga
           </Link>
         </Button>
-        <PageHeader title={<span className="font-mono">{c.id}</span>} description={c.resumo} />
+        <PageHeader
+          title={<span className="font-mono">{c.id}</span>}
+          description={c.resumo}
+          actions={
+            <Button asChild variant="ghost" className="text-foreground min-w-40 gap-1.5 whitespace-nowrap max-sm:h-11">
+              <Link href={`/painel?caso=${c.id}`}>
+                <MapPin className="size-5" />
+                Ver no mapa (demo)
+              </Link>
+            </Button>
+          }
+        />
         <div className="flex flex-wrap items-center gap-2">
           <BadgeTipo tipo={c.tipo} />
           <BadgeGravidade g={c.gravidade} />
@@ -259,16 +273,10 @@ function Tratativa({ c }: { c: Caso }) {
         <BadgePagador pagador={d.pagador} />
         <span className="text-muted-foreground text-sm">NF {c.contexto?.valor_nf ? brl(c.contexto.valor_nf) : '—'}</span>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-muted/50 rounded-md p-3">
-          <span className="text-muted-foreground block text-xs font-bold tracking-wider">Custo da ocorrência</span>
-          <span className="text-lg font-bold tabular-nums">{brl(c.contexto?.custo_ocorrencia ?? custoOcorrencia(c))}</span>
-        </div>
-        <div className="bg-muted/50 rounded-md p-3">
-          <span className="text-muted-foreground block text-xs font-bold tracking-wider">Custo do seguro</span>
-          <span className="text-lg font-bold tabular-nums">{brl(c.contexto?.custo_seguro ?? custoSeguro(c, d))}</span>
-        </div>
-      </div>
+      <StatGrid>
+        <StatBox label="Custo da ocorrência" value={brl(c.contexto?.custo_ocorrencia ?? custoOcorrencia(c))} />
+        <StatBox label="Custo do seguro" value={brl(c.contexto?.custo_seguro ?? custoSeguro(c, d))} />
+      </StatGrid>
       <Field label="Playbook">
         <span className="block">{d.playbook}</span>
         <span className="text-muted-foreground mt-1 block font-normal">{d.motivo}</span>

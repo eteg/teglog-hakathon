@@ -45,6 +45,7 @@ function clean(overrides: Partial<OcorrenciaEzworker> = {}): OcorrenciaEzworker 
     faltando: [],
     confianca: { tipo: 0.95, nf: 0.9, transportadora: 0.9 },
     contexto: { rota: "São Paulo → Curitiba" },
+    local: { latitude: -24.92, longitude: -48.98 },
     recebido_em: "2026-11-20T14:15:00.000Z",
     ...overrides,
   };

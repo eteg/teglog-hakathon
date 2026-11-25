@@ -89,5 +89,6 @@ async function obterMidiaMock(idMidia: string): Promise<Midia> {
 
 export async function obterMidia(idMidia: string): Promise<Midia> {
   const { env } = await getCloudflareContext({ async: true });
-  return env.WHATSAPP_MODE === "mock" ? obterMidiaMock(idMidia) : obterMidiaMeta(idMidia, env.WHATSAPP_ACCESS_TOKEN);
+  return env.WHATSAPP_MODE === "mock" || idMidia.startsWith("uploads/")
+    ? obterMidiaMock(idMidia) : obterMidiaMeta(idMidia, env.WHATSAPP_ACCESS_TOKEN);
 }

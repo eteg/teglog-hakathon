@@ -22,6 +22,7 @@ import {
   ORDEM_STATUS,
 } from './regras'
 import { armazenarEvidencias, guardarArquivo } from './evidencias'
+import { carregarTracados, localNaRota, obterRota } from './rotas'
 import { CASOS_SEMENTE } from './semente'
 import type { CampoRevisavel, Caso, Evidencia, OcorrenciaEzworker, PaginaCasos, StatusCaso, TipoEvidencia } from './types'
 
@@ -64,9 +65,18 @@ async function inserir(o: OcorrenciaEzworker): Promise<Caso> {
   // O número do caso vem do autoincremento: insere com id provisório e renomeia.
   const provisorio = o.id ?? `tmp-${crypto.randomUUID()}`
   const base = montarCaso({ ...o, evidencias: semConteudo }, provisorio)
+  const rota = await obterRota(o.contexto?.rota)
   const [linha] = await db
     .insert(casos)
-    .values({ id: provisorio, status: base.status, recebidoEm: base.recebido_em, dados: base })
+    .values({
+      id: provisorio,
+      status: base.status,
+      recebidoEm: base.recebido_em,
+      rotaId: rota?.id,
+      latitude: o.local.latitude,
+      longitude: o.local.longitude,
+      dados: base,
+    })
     .onConflictDoNothing({ target: casos.id })
     .returning({ seq: casos.seq })
 
@@ -94,7 +104,24 @@ async function semearSeVazio() {
   const db = await getDb()
   const [{ total }] = await db.select({ total: count() }).from(casos)
   if (total > 0) return
-  for (const o of CASOS_SEMENTE) await inserir(o)
+  for (const o of CASOS_SEMENTE) await inserir({ ...o, local: await localNaRota(o.contexto?.rota, o.id) })
+}
+
+/** Um ponto por caso para o mapa de calor; caso antigo sem coordenada cai num ponto da rota dele. */
+export async function listarPontos() {
+  await semearSeVazio()
+  const db = await getDb()
+  const linhas = await db
+    .select({ id: casos.id, latitude: casos.latitude, longitude: casos.longitude, dados: casos.dados })
+    .from(casos)
+  const localNoTracado = await carregarTracados()
+  return linhas.map(({ id, latitude, longitude, dados }) => ({
+    id,
+    tipo: dados.tipo,
+    rota: dados.contexto?.rota ?? null,
+    prejuizo: dados.contexto?.custo_ocorrencia ?? dados.contexto?.valor_nf ?? 0,
+    local: latitude !== null && longitude !== null ? { latitude, longitude } : localNoTracado(dados.contexto?.rota, id),
+  }))
 }
 
 export async function receber(o: OcorrenciaEzworker): Promise<Caso> {

@@ -6,6 +6,7 @@ import 'server-only'
 import { FOTO_DEMO_AVARIA_JPEG_BASE64 } from './demo-midia'
 import { CENARIOS, escolherCenario, type EntradaMock } from './mock-ezworker'
 import { runIncidentFromEzworker } from './graph/run'
+import { localNaRota } from './rotas'
 import { obter } from './store'
 import type { Canal, OcorrenciaEzworker } from './types'
 import { validarOcorrencia } from './validar'
@@ -35,7 +36,8 @@ export async function simularEzworker(
       : undefined)
 
   const texto = entrada.texto ?? (entrada.aleatorio ? cenario.textoExemplo : undefined)
-  const ocorrencia = cenario.gerar({ canal, texto, arquivo })
+  const gerada = cenario.gerar({ canal, texto, arquivo })
+  const ocorrencia: OcorrenciaEzworker = { ...gerada, local: await localNaRota(gerada.contexto?.rota) }
 
   let entregue: ResultadoMock['entregue']
   if (entrada.entregar !== false) {
