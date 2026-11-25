@@ -103,7 +103,8 @@ export interface VerificacaoAcesso {
 
 export async function verificarAcesso(): Promise<VerificacaoAcesso> {
   const { env } = await getCloudflareContext({ async: true })
-  const chaveLeitura = (env as unknown as { READ_API_KEY?: string }).READ_API_KEY
+  const e = env as unknown as { READ_API_TOKEN?: string; READ_API_KEY?: string }
+  const chaveLeitura = e.READ_API_TOKEN || e.READ_API_KEY
 
   const ferramentasAssistente = FERRAMENTAS_ASSISTENTE.map((f) => ({
     nome: f.nome,

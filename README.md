@@ -246,7 +246,7 @@ A API exige login (cookie JWT) ou uma chave no header `x-api-key`:
 
 | Chave | Pode | Quem usa |
 |---|---|---|
-| `READ_API_KEY` | só consultar (GET e a pergunta do gestor) | assistente do gestor, integrações de leitura |
+| `READ_API_TOKEN` | só consultar (GET, a pergunta do gestor e `/api/read/*`) | assistente do gestor, servidor MCP, integrações de leitura |
 | `ANALYST_API_KEY` | consultar e alterar (aprovar, corrigir, responder, anexar, enviar arquivo) | analista, scripts internos |
 
 Com a chave de leitura, toda rota que altera dados responde **403**; sem chave, **401**. CPF, telefone e
@@ -254,8 +254,8 @@ placa saem mascarados nas respostas para a chave de leitura. Matriz em [lib/perm
 
 ```bash
 openssl rand -hex 24   # gere as duas chaves
-# local: .dev.vars (veja .dev.vars.example) · Worker: npx wrangler secret put READ_API_KEY / ANALYST_API_KEY
-curl -H "x-api-key: $READ_API_KEY" http://localhost:3000/api/ocorrencias
+# local: .dev.vars (veja .dev.vars.example) · Worker: npx wrangler secret put READ_API_TOKEN / ANALYST_API_KEY
+curl -H "Authorization: Bearer $READ_API_TOKEN" http://localhost:3000/api/ocorrencias
 ```
 
 ### 6. Dados pessoais

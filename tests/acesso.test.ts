@@ -1,9 +1,9 @@
 // Critério 4 (acesso mínimo): a chave de leitura não altera nada e o assistente só lê.
-// Rode com: npm test
+// Rode com: npm test (Vitest)
 import assert from 'node:assert/strict'
 import { readdirSync, readFileSync, statSync } from 'node:fs'
 import { join, relative } from 'node:path'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
 import { FERRAMENTAS_ASSISTENTE, PAPEL_DO_ASSISTENTE, ROTAS, acaoDaRota, permite } from '../lib/permissoes.ts'
 
@@ -17,6 +17,11 @@ const ISENTAS = [
   '/api/auth/login',
   '/api/auth/logout',
   '/api/auth/sessao',
+  // API só de leitura para agentes: protegida por requireScope (lib/auth.ts, READ_API_TOKEN)
+  '/api/read/incidents',
+  '/api/read/incidents/[number]',
+  '/api/read/kpis',
+  '/api/read/patterns',
 ]
 
 function arquivosDeRota(dir = 'app/api'): string[] {

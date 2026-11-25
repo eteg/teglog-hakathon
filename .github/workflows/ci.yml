@@ -27,7 +27,7 @@ jobs:
       - name: Typecheck
         run: npm run typecheck
 
-      - name: Testes (dados pessoais e acesso mínimo)
+      - name: Testes
         run: npm test
 
       - name: Migrations em sincronia com db/schema.ts

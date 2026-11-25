@@ -5,7 +5,12 @@ import type { SQLiteUpdateSetSource } from "drizzle-orm/sqlite-core";
 import { mensagensWhatsapp, tarefasAnalise, type MensagemWhatsapp } from "@/db/schema";
 import { enviarParaAnalise, type TipoAnalise } from "@/lib/analise";
 import { getDb } from "@/lib/db";
+import { sha256Hex } from "@/lib/evidencias";
 import { criarTarefa, guardarMidia } from "@/lib/ingestao";
+import { getBucket } from "@/lib/storage";
+import { receber } from "@/lib/store";
+import type { Evidencia } from "@/lib/types";
+import { validarOcorrencia } from "@/lib/validar";
 import { pseudonimoTelefone, semPII } from "@/lib/pii";
 
 const BASE_RETENTATIVA_SEGUNDOS = 30;
@@ -46,6 +51,32 @@ async function reservarTarefas(cooldownSegundos: number) {
     RETURNING id, mensagem_id, endpoint, tentativas, max_tentativas`);
 }
 
+async function criarCaso(mensagem: MensagemWhatsapp, corpo: unknown) {
+  const { latitude, longitude } = mensagem;
+  const validada = validarOcorrencia(corpo, latitude !== null && longitude !== null ? { latitude, longitude } : undefined);
+  if (!validada.ok) throw new Error(`resposta da IA inválida: ${validada.erros.join("; ")}`);
+
+  const hashDoTexto = mensagem.texto ? await sha256Hex(new TextEncoder().encode(mensagem.texto).buffer) : undefined;
+  const evidencias: Evidencia[] = validada.dado.evidencias.map((evidencia) => ({
+    ...evidencia,
+    capturada_em: evidencia.capturada_em ?? mensagem.recebidoEm,
+    ...(evidencia.tipo === "texto" && { hash: evidencia.hash ?? hashDoTexto }),
+  }));
+  if (mensagem.chaveArmazenamento) {
+    const bytes = await (await (await getBucket()).get(mensagem.chaveArmazenamento))?.arrayBuffer();
+    const midia = {
+      key: mensagem.chaveArmazenamento,
+      content_type: mensagem.tipoConteudo ?? undefined,
+      ...(bytes && { hash: await sha256Hex(bytes), tamanho: bytes.byteLength }),
+    };
+    const indice = evidencias.findIndex((evidencia) => evidencia.tipo !== "texto");
+    if (indice >= 0) evidencias[indice] = { ...evidencias[indice], ...midia };
+    else evidencias.push({ tipo: mensagem.tipo === "audio" ? "audio_relato" : "foto_avaria", legivel: true, ...midia });
+  }
+
+  await receber({ ...validada.dado, evidencias, recebido_em: mensagem.recebidoEm });
+}
+
 async function enviarTarefa(tarefa: TarefaReservada, mensagem: MensagemWhatsapp) {
   // Critério 6: nada de dado pessoal sai para a IA nem fica no registro da chamada (payloadEnvio).
   // O texto vai com CPF/telefone/placa/e-mail trocados por marcadores; o telefone do remetente
@@ -66,8 +97,10 @@ async function enviarTarefa(tarefa: TarefaReservada, mensagem: MensagemWhatsapp)
   let status: number | null = null;
   let erro: string | null = null;
   try {
-    ({ status } = await enviarParaAnalise(tarefa.endpoint, payload));
+    const resposta = await enviarParaAnalise(tarefa.endpoint, payload);
+    status = resposta.status;
     if (status < 200 || status >= 300) erro = `HTTP ${status}`;
+    else await criarCaso(mensagem, resposta.corpo);
   } catch (causa) {
     erro = String(causa);
   }
@@ -152,9 +185,9 @@ async function varrer() {
   return liberadas.length;
 }
 
-export async function processarFila(origem: string) {
+export async function processarFila(origem: string, cooldownSegundos?: number) {
   const liberadas = await varrer();
-  const tarefas = await reservarTarefas(await segundosDeCooldown());
+  const tarefas = await reservarTarefas(cooldownSegundos ?? (await segundosDeCooldown()));
   console.log("[fila] rodou", { origem, liberadas, pegas: tarefas.length });
   await enviarTarefas(tarefas);
 }

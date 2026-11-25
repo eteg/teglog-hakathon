@@ -5,8 +5,9 @@ import 'server-only'
 
 import { FOTO_DEMO_AVARIA_JPEG_BASE64 } from './demo-midia'
 import { CENARIOS, escolherCenario, type EntradaMock } from './mock-ezworker'
-import { mascararPII } from './pii'
-import { receber } from './store'
+import { runIncidentFromEzworker } from './graph/run'
+import { localNaRota } from './rotas'
+import { obter } from './store'
 import type { Canal, OcorrenciaEzworker } from './types'
 import { validarOcorrencia } from './validar'
 
@@ -34,21 +35,18 @@ export async function simularEzworker(
       ? { base64: FOTO_DEMO_AVARIA_JPEG_BASE64, contentType: 'image/jpeg', nome: 'foto-demo.jpg' }
       : undefined)
 
-  const original = entrada.texto ?? (entrada.aleatorio ? cenario.textoExemplo : undefined)
-  // Mesma fronteira do envio real (lib/fila.ts): a "IA" só recebe o texto com dados pessoais escondidos.
-  const mascarado = original ? mascararPII(original) : undefined
-  const ocorrencia = cenario.gerar({ canal, texto: mascarado?.texto, arquivo })
+  const texto = entrada.texto ?? (entrada.aleatorio ? cenario.textoExemplo : undefined)
+  const gerada = cenario.gerar({ canal, texto, arquivo })
+  const ocorrencia: OcorrenciaEzworker = { ...gerada, local: await localNaRota(gerada.contexto?.rota) }
 
   let entregue: ResultadoMock['entregue']
   if (entrada.entregar !== false) {
     const v = validarOcorrencia(ocorrencia)
     if (!v.ok) throw new Error(`mock gerou JSON fora do contrato: ${v.erros.join(', ')}`)
-    const caso = await receber(
-      v.dado,
-      mascarado?.achados.length
-        ? { relato_original: original, pii_mascarado: mascarado.achados.map(({ tipo, marcador }) => ({ tipo, marcador })) }
-        : undefined,
-    )
+    // Same path as the real webhook: the decision graph, then the case mirrored in `casos`.
+    const run = await runIncidentFromEzworker(v.dado)
+    const caso = run.state.caseId ? await obter(run.state.caseId) : undefined
+    if (!caso) throw new Error('o grafo não gerou o caso')
     entregue = { id: caso.id, status: caso.status, pagador: caso.decisao.pagador }
   }
 

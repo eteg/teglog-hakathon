@@ -262,7 +262,7 @@ function CriterioAcesso({ acesso }: { acesso: VerificacaoAcesso }) {
 
       {!acesso.configurado && (
         <p className="rounded-md border border-[#FDE68A] bg-[#FFFBEB] p-3 text-sm text-[#78350F]">
-          Defina <code>READ_API_KEY</code> e <code>ANALYST_API_KEY</code> (em <code>.dev.vars</code> localmente ou com{' '}
+          Defina <code>READ_API_TOKEN</code> e <code>ANALYST_API_KEY</code> (em <code>.dev.vars</code> localmente ou com{' '}
           <code>wrangler secret put</code> no Worker) para rodar o teste ao vivo.
         </p>
       )}

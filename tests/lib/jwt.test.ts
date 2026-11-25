@@ -1,8 +1,8 @@
 // Login simples: o JWT só vale com a assinatura certa e dentro da validade.
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
-import { assinarJWT, verificarJWT } from '../lib/jwt.ts'
+import { assinarJWT, verificarJWT } from '../../lib/jwt.ts'
 
 const SEGREDO = 'segredo-de-teste-com-tamanho-suficiente'
 

@@ -1,6 +1,7 @@
 import { exigir, exigirLeitura } from "@/lib/acesso";
 import { casoSemPII } from "@/lib/pii-caso";
 import { CAMPOS_REVISAVEIS } from "@/lib/regras";
+import { approveFromCase } from "@/lib/graph/case-review";
 import { atualizarStatus, obter, revisarCampo } from "@/lib/store";
 import type { CampoRevisavel } from "@/lib/types";
 
@@ -29,7 +30,11 @@ export async function POST(req: Request, ctx: RouteContext<"/api/ocorrencias/[id
 
   let novo;
   if (acao === "aprovar") {
-    novo = await atualizarStatus(id, "aprovado", "Cliente aprovou a tratativa", c.decisao.motivo);
+    // Resumes the decision graph: confirms the reviewed fields and/or authorizes the charge.
+    // Nothing is charged without this click.
+    await approveFromCase(id, "Analista");
+    const atual = (await obter(id)) ?? c;
+    novo = await atualizarStatus(id, "aprovado", "Cliente aprovou a tratativa", atual.decisao.motivo);
   } else if (acao === "responder") {
     if (!mensagem?.trim()) return Response.json({ erro: "mensagem vazia" }, { status: 400 });
     // TODO: devolver a resposta à transportadora (webhook de saída / ezworker)

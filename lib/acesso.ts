@@ -8,7 +8,8 @@ import { getCloudflareContext } from '@opennextjs/cloudflare'
 import { permite, type Acao, type Papel } from './permissoes'
 import { sessaoDaRequisicao } from './sessao'
 
-type Ambiente = { READ_API_KEY?: string; ANALYST_API_KEY?: string }
+// READ_API_TOKEN é o mesmo token das rotas /api/read/* (lib/auth.ts): um token de leitura só.
+type Ambiente = { READ_API_TOKEN?: string; READ_API_KEY?: string; ANALYST_API_KEY?: string }
 
 async function chaves(): Promise<Ambiente> {
   const { env } = await getCloudflareContext({ async: true })
@@ -31,9 +32,10 @@ function iguais(a: string, b: string): boolean {
 export async function papelDaRequisicao(req: Request): Promise<Papel | null> {
   const chave = req.headers.get('x-api-key') ?? req.headers.get('authorization')?.replace(/^Bearer\s+/i, '') ?? ''
   if (chave) {
-    const { READ_API_KEY, ANALYST_API_KEY } = await chaves()
+    const { READ_API_TOKEN, READ_API_KEY, ANALYST_API_KEY } = await chaves()
+    const leitura = READ_API_TOKEN || READ_API_KEY
     if (ANALYST_API_KEY && iguais(chave, ANALYST_API_KEY)) return 'analista'
-    if (READ_API_KEY && iguais(chave, READ_API_KEY)) return 'leitura'
+    if (leitura && iguais(chave, leitura)) return 'leitura'
     return null
   }
   const sessao = await sessaoDaRequisicao(req)

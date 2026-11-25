@@ -1,9 +1,9 @@
 // Critério 6: formatos que devem ser escondidos e os que não devem.
-// Rode com: npm test
+// Rode com: npm test (Vitest)
 import assert from 'node:assert/strict'
-import { test } from 'node:test'
+import { test } from 'vitest'
 
-import { cpfValido, mascararPII } from '../lib/pii.ts'
+import { cpfValido, mascararPII } from '../../lib/pii.ts'
 
 const mascara = (t: string) => mascararPII(t).texto
 
@@ -53,7 +53,7 @@ test('texto já mascarado não é mascarado de novo', () => {
 })
 
 test('amostra de 50 relatos: 100% dos dados pessoais escondidos e nenhuma isca alterada', async () => {
-  const { gerarAmostraPII } = await import('../lib/pii-amostra.ts')
+  const { gerarAmostraPII } = await import('../../lib/pii-amostra.ts')
   const amostra = gerarAmostraPII()
   assert.equal(amostra.length, 50)
   let plantados = 0

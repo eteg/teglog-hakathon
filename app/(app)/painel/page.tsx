@@ -1,8 +1,11 @@
 import { CircleDollarSign, PiggyBank, Truck, TriangleAlert } from 'lucide-react'
+import { Suspense } from 'react'
 
+import { MapaPrejuizo } from '@/components/mapa-prejuizo'
 import { PageContainer, PageHeader } from '@/components/page-header'
 import { Ranking } from '@/components/ranking'
 import { Kpi, Section } from '@/components/ui'
+import { Skeleton } from '@/components/ui/skeleton'
 import { BASE, agregar, recomendar, totais } from '@/lib/padroes'
 import { brl } from '@/lib/regras'
 
@@ -31,6 +34,12 @@ export default function Painel() {
         <Kpi icon={TriangleAlert} label="Ocorrências a cada mil" value={fmt(t.porMil)} hint={`${fmt(t.ocorrencias, 0)} ocorrências`} />
         <Kpi icon={PiggyBank} label="Economia possível" value={brl(economia)} hint="Com as ações abaixo, por mês" />
       </div>
+
+      <Section title="Mapa de calor das ocorrências">
+        <Suspense fallback={<Skeleton className="h-[420px] w-full rounded-md" />}>
+          <MapaPrejuizo />
+        </Suspense>
+      </Section>
 
       <Section title="Ações que mais economizam">
         <ol className="flex flex-col gap-3">
