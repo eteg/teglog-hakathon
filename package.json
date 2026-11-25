@@ -17,7 +17,9 @@
     "db:migrate:remote": "wrangler d1 migrations apply DB --remote",
     "test": "vitest run",
     "db:seed:generate": "tsx scripts/generate-seed.ts",
-    "db:seed:local": "tsx scripts/generate-seed.ts && wrangler d1 execute DB --local --file db/seed/seed.sql"
+    "db:seed:local": "tsx scripts/generate-seed.ts && wrangler d1 execute DB --local --file db/seed/seed.sql",
+    "mcp": "tsx mcp/server.ts",
+    "quality:attacks": "tsx --tsconfig tsconfig.json scripts/quality-attacks.ts"
   },
   "dependencies": {
     "@langchain/core": "^1.5.1",
@@ -40,6 +42,7 @@
     "zod": "^4.6.7"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.32.2",
     "@tailwindcss/turbopack": "4.3.3",
     "@types/node": "^20",
     "@types/react": "^19",

@@ -8,7 +8,7 @@ const PATTERNS: [RegExp, string][] = [
   [/\bignor(e|ar|em)\b.{0,30}\b(instru|regra|anterior|sistema)/i, "pede para ignorar instruções"],
   [/\b(sistema|system|assistente|assistant)\s*:/i, "imita mensagem do sistema"],
   [/\b(pul(e|ar)|sem)\b.{0,20}\brevis(ã|a)o\b/i, "pede para pular a revisão"],
-  [/\b(pagador|payer)\s*[=:]/i, "tenta definir quem paga"],
+  [/["']?\b(pagador|payer|requer_aprovacao|requires_review)\b["']?\s*[=:]/i, "tenta definir quem paga ou a revisão"],
   [/\b(drop|delete|insert|update)\s+(table|from|into)\b|;\s*--/i, "contém comando de banco de dados"],
 ];
 

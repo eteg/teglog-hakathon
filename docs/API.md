@@ -86,3 +86,33 @@ As telas atuais continuam usando as rotas que já existiam; o grafo foi ligado a
 
 ### `GET /api/graph/diagram`
 O grafo em Mermaid, gerado do próprio código. Para a parte "por dentro" da demo.
+
+## Qualidade (F7)
+
+### `GET /api/quality`
+Os seis critérios de qualidade, medidos na hora (a bateria de ataques roda a cada chamada):
+
+| Campo | Conteúdo |
+|---|---|
+| `schema` | ocorrências válidas e rejeitadas, `savedWithoutValidation` (deve ser 0) |
+| `guardrails` | `blocked` de `total` ataques e o resultado de cada um |
+| `humanInTheLoop` | enviadas à revisão (%), aguardando, revisadas por pessoa, `passedWithoutHuman` (deve ser 0) e os motivos |
+| `minimumAccess` | ferramentas do agente e `writeTools` (deve ser 0) |
+| `observability` | tempo de processamento por ocorrência (`processingMsP50`, `processingMsP95`) e por passo |
+| `personalData` | mascaramento nos 50 relatos plantados e `leaksInStoredOutput` (deve ser 0) |
+
+## API só de leitura (agentes)
+
+Exige `Authorization: Bearer <READ_API_TOKEN>`. Sem a chave: `401`. Só aceita `GET`. Texto livre já mascarado; o detalhe não traz o caso original nem o nome do motorista.
+
+| Rota | Conteúdo |
+|---|---|
+| `GET /api/read/kpis?view=summary\|ranking\|timeseries` | mesmos dados de `/api/kpis*`, com os mesmos filtros |
+| `GET /api/read/incidents` | lista de ocorrências |
+| `GET /api/read/incidents/:number` | detalhe com a trilha de decisões |
+| `GET /api/read/patterns` | padrões emergentes |
+
+## Servidor MCP
+
+`RECUPERA_API_URL=<url do app> RECUPERA_READ_TOKEN=<token> npm run mcp`. Ferramentas, todas só de leitura: `get_kpi_summary`, `get_kpi_ranking`, `get_kpi_timeseries`, `list_incidents`, `get_incident`, `list_patterns`.
+

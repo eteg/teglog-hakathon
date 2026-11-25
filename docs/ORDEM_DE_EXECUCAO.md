@@ -10,27 +10,36 @@ Tarefas marcadas com ✂ são as cortáveis, na ordem de corte do plano: webhook
 
 ## Andamento
 
+> Mudança de rumo (25/11): o ezworker já entrega a ocorrência extraída e o projeto não usa mais o Claude. Saíram as tarefas que só existiam para isso (leitura das mensagens pelo modelo, webhook de transcrição, simulador de mensagens). O plano atualizado está em [PLANO_DESENVOLVIMENTO.md](PLANO_DESENVOLVIMENTO.md).
+
 | Tarefa | Situação | Observação |
 |---|---|---|
-| T01 | Feito | Rodou no `workerd` local (mesmo runtime da Cloudflare): pausa com `interrupt()`, estado no D1, retomada em outra requisição. Falta ver no ambiente publicado. A rota de teste foi removida |
-| T02 | Feito | `lib/ai/extraction-schema.ts` e `lib/graph/state.ts` |
-| T03 | Feito | Migração `0003`; o banco recusa tipo, status e pagador fora da lista |
-| T04 | Parcial | F1 a F6 já existem na `main`; falta só a F7 (qualidade) |
-| T05 | Pendente | Depende de quem cuida do ezworker |
-| T06 | Feito com os padrões do plano | `lib/rules/config.ts`. Confiança mínima passou de 0,7 (código antigo) para 0,75 (plano); confirmar com o time |
-| T15 | Adiantado | `lib/graph/d1-checkpointer.ts`, necessário para o T01 |
-| T07 | Feito | `npm run db:seed:local`: 14.644 entregas, 632 ocorrências; padrão "caixa molhada" em São Paulo → Curitiba com a Beta (26 relatos antes de setembro, 3 depois); recusas à noite 61,9 por mil contra 2,6 de dia |
-| T08 | Feito | `POST /api/simulator/message`; mensagens do mesmo telefone em 60 s viram um relato; mídia no R2 com SHA-256 |
-| T09 | Feito | `POST /api/webhooks/transcription` (exige `TRANSCRIPTION_WEBHOOK_SECRET`) e `POST /api/simulator/transcription`; não sobrescreve transcrição já recebida |
-| T10 | Feito | `lib/ai/call-model.ts` grava `model_calls`; `lib/observability/tracer.ts` grava `node_runs` |
-| T11 | Feito | Regras em `lib/rules/` com 32 testes; `npm test` no CI e no deploy. `lib/regras.ts` (código antigo) ainda não delega: fica para quando as telas usarem as tabelas novas |
-| T12 | Feito | Grafo com duas entradas: ocorrência pronta do ezworker (`/api/webhook/ezworker` e o mock) e relato lido pelo Claude. Sem `ANTHROPIC_API_KEY`, a entrada pelo Claude não foi testada com o modelo real |
-| T13 | Feito e ampliado | `GET /api/kpis`, `/summary`, `/timeseries`, `/matrix`, `/filters` e `GET /api/incidents`; contrato em `docs/API.md` |
-| T14 | Resolvido de outro jeito | O grafo grava em `incidents` (gráficos) e espelha o resultado em `casos`, então F2, F3 e F5 seguem funcionando sem mudança no front |
-| T16 | Feito | Pausas de transcrição, evidência e revisão com `interrupt()`; "aprovar" e "anexar evidência" das telas atuais retomam o grafo |
-| T17 | Feito | `lib/pii.ts` (CPF com dígito verificador, telefone, placa, e-mail) e nó `mask_pii`; 16 testes |
-| T19 | Parcial | Detalhe em `GET /api/incidents/:number` com a trilha de decisões; aprovação usa a rota antiga `POST /api/ocorrencias/:id` |
-| T22 | Feito | Nó `detect_injection_signals`; teste mostra custo e pagador iguais com e sem o ataque |
+| T01 | Feito | LangGraph rodando no `workerd` local, com pausa e retomada pelo D1. Falta ver no ambiente publicado |
+| T02, T03, T06 | Feito | Formato interno da ocorrência, tabelas novas (migração `0004`), valores em `lib/rules/config.ts` |
+| T04 | Parcial | F1 a F6 existem (front do colega); falta a F7 |
+| T05, T08, T09 | Removidas | Transcrição e entrada de mensagens ficam com a ingestão da `main` e o ezworker |
+| T07 | Feito | Base fictícia com padrões plantados e 50 ocorrências com dados pessoais |
+| T10 | Feito | `node_runs` (tempo de cada passo); o registro de chamadas ao modelo saiu com o Claude |
+| T11 | Feito | Regras em `lib/rules/` com testes |
+| T12 | Feito | Grafo começa no webhook do ezworker e no mock |
+| T13 | Feito | KPIs (cards, ranking, série, matriz, filtros), lista e detalhe; contrato em `docs/API.md` |
+| T14 | Resolvido de outro jeito | Resultado espelhado em `casos`; as telas seguem funcionando sem mudança |
+| T15 | Feito | Checkpointer D1 |
+| T16 | Feito | Pausas de evidência e revisão, retomadas por "anexar evidência" e "aprovar" |
+| T17 | Feito | Mascaramento de dados pessoais |
+| T18, T23 | Feito | Chave `READ_API_TOKEN` e API só de leitura `/api/read/*` |
+| T19 | Feito | Detalhe com trilha de decisões; aprovação pela rota existente |
+| T20 | Removida | Agrupamento de mensagens é feito pela fila da `main` |
+| T21, T30 | Pendente (front) | F3 com a trilha, F4, F5, F6 e F7 nas telas |
+| T22 | Feito | Sinais de ataque |
+| T24 | Fora do escopo | Grafo de perguntas com modelo; a F4 atual não usa IA |
+| T25 | Feito | `GET /api/quality` com os 6 critérios |
+| T26, T27 | Feito | Servidor MCP só de leitura (`npm run mcp`) e testes de acesso mínimo |
+| T28 | Pendente | Agrupamento por similaridade (hoje F6 agrupa por tipo e subtipo) |
+| T29 | Fora do escopo | Langfuse; a observabilidade usa `node_runs` |
+| T31, T32 | Feito | Bateria de ataques (10 de 10) e medição do mascaramento (100% nos 50 relatos) |
+| T33 | Pendente | Conferir os números do pitch com a base |
+| T34, T35 | Pendente | Webhook real da Meta e deploy final (dependem de push) |
 
 ---
 
