@@ -142,6 +142,7 @@ function Sidebar({
   side = 'left',
   variant = 'sidebar',
   collapsible = 'offcanvas',
+  mobileSheet = true,
   className,
   children,
   ...props
@@ -149,6 +150,11 @@ function Sidebar({
   side?: 'left' | 'right'
   variant?: 'sidebar' | 'floating' | 'inset'
   collapsible?: 'offcanvas' | 'icon' | 'none'
+  /**
+   * Abaixo do breakpoint, troca a sidebar por um Sheet. Desligue quando a navegação mobile
+   * for outra (ex.: menu do header): evita markup diferente entre servidor e cliente (hidratação).
+   */
+  mobileSheet?: boolean
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar()
 
@@ -167,7 +173,7 @@ function Sidebar({
     )
   }
 
-  if (isMobile) {
+  if (isMobile && mobileSheet) {
     return (
       <Sheet open={openMobile} onOpenChange={setOpenMobile} {...props}>
         <SheetContent

@@ -17,7 +17,9 @@ import {
   lerCampo,
   prazoProtesto,
   situacaoRegistro,
+  statusExibicao,
   statusInicial,
+  ORDEM_STATUS,
 } from './regras'
 import { armazenarEvidencias, guardarArquivo } from './evidencias'
 import { CASOS_SEMENTE } from './semente'
@@ -126,7 +128,7 @@ const ORDENADORES: Record<string, (c: Caso) => string | number> = {
   tipo: (c) => c.tipo,
   valor: (c) => c.contexto?.valor_nf ?? 0,
   prazo: (c) => (c.contexto?.prazo_protesto ? diasAte(c.contexto.prazo_protesto) : Number.MAX_SAFE_INTEGER),
-  status: (c) => c.status,
+  status: (c) => ORDEM_STATUS.indexOf(statusExibicao(c)),
   motorista: (c) => c.contexto?.motorista ?? '',
 }
 
@@ -138,7 +140,7 @@ export async function listarPagina(f: FiltrosCasos): Promise<PaginaCasos> {
   const q = f.q?.trim().toLowerCase()
   const filtrados = todos.filter((c) => {
     if (f.tipo && c.tipo !== f.tipo) return false
-    if (f.status && c.status !== f.status) return false
+    if (f.status && statusExibicao(c) !== f.status && c.status !== f.status) return false
     if (f.transportadora && c.transportadora !== f.transportadora) return false
     if (f.motorista && c.contexto?.motorista !== f.motorista) return false
     if (f.rota && c.contexto?.rota !== f.rota) return false
@@ -173,7 +175,7 @@ export async function listarPagina(f: FiltrosCasos): Promise<PaginaCasos> {
     totalPages,
     facetas: {
       tipos: unicos(todos.map((c) => c.tipo)),
-      status: unicos(todos.map((c) => c.status)),
+      status: unicos(todos.map((c) => statusExibicao(c))),
       transportadoras: unicos(todos.map((c) => c.transportadora)),
       motoristas: unicos(todos.map((c) => c.contexto?.motorista)),
       rotas: unicos(todos.map((c) => c.contexto?.rota)),
@@ -182,8 +184,8 @@ export async function listarPagina(f: FiltrosCasos): Promise<PaginaCasos> {
       abertos: abertos.length,
       valorAberto: abertos.reduce((s, c) => s + (c.contexto?.valor_nf ?? 0), 0),
       prazoCurto: abertos.filter((c) => c.contexto?.prazo_protesto && diasAte(c.contexto.prazo_protesto) <= 3).length,
-      aguardando: abertos.filter((c) => c.status === 'aguardando_aprovacao').length,
-      emRevisao: abertos.filter((c) => situacaoRegistro(c) === 'em_revisao').length,
+      aguardando: abertos.filter((c) => statusExibicao(c) === 'aguarda_voce').length,
+      emRevisao: abertos.filter((c) => statusExibicao(c) === 'em_revisao').length,
     },
   }
 }

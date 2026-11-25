@@ -8,7 +8,7 @@ export default function Perguntar() {
     <PageContainer>
       <PageHeader
         title="Pergunte ao prejuízo"
-        description="Pergunte em português sobre custos, rotas, transportadoras e motoristas. A resposta vem em R$, com a consulta usada para calcular."
+        description="Escolha uma pergunta: o gráfico mostra a resposta e, abaixo, a consulta usada para calcular."
       />
       <PerguntaGestor />
     </PageContainer>

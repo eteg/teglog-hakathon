@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Pencil, Sparkles } from 'lucide-react'
+import { Check, Pencil } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState } from 'react'
 
@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GrupoPadrao } from '@/lib/padroes-emergentes'
-import { brl } from '@/lib/regras'
+import { brl, rotuloSubtipo } from '@/lib/regras'
 import { Badge, BadgeTipo, Section } from './ui'
 
 /** Padrões emergentes (F6): grupos de relatos parecidos, com custo, rotas e nome dado pelo analista. */
@@ -79,14 +79,12 @@ function Grupo({ grupo: g, onNomeado }: { grupo: GrupoPadrao; onNomeado: (nome: 
     <Section
       title={
         <span className="flex flex-wrap items-center gap-2">
-          {g.nome ?? <span className="text-muted-foreground font-normal italic">{g.sugestao}</span>}
+          <span className="text-foreground font-bold">{g.nome ?? g.sugestao}</span>
         </span>
       }
       action={
         g.emergente ? (
-          <Badge tom="red">
-            <Sparkles className="size-3" /> Emergente
-          </Badge>
+          <Badge tom="red">Emergente</Badge>
         ) : (
           <Badge>Caso isolado</Badge>
         )
@@ -94,7 +92,7 @@ function Grupo({ grupo: g, onNomeado }: { grupo: GrupoPadrao; onNomeado: (nome: 
     >
       <div className="flex flex-wrap items-center gap-2">
         <BadgeTipo tipo={g.tipo} />
-        <span className="text-muted-foreground font-mono text-xs">{g.subtipo}</span>
+        <span className="text-foreground text-sm font-bold">{rotuloSubtipo(g.subtipo)}</span>
       </div>
 
       <div className="grid grid-cols-2 gap-3">
