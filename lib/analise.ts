@@ -1,6 +1,13 @@
 import "server-only";
 import { getCloudflareContext } from "@opennextjs/cloudflare";
-import { CATALOGO_MOCK_IA, escolherMock } from "@/lib/mock-ia-catalogo";
+import { CATALOGO_MOCK_IA, escolherMock, type CanalMockIa } from "@/lib/mock-ia-catalogo";
+import { localNaRota } from "@/lib/rotas";
+import type { OcorrenciaEzworker } from "@/lib/types";
+
+export async function respostaMock(canal: CanalMockIa, indice: number): Promise<OcorrenciaEzworker> {
+  const mock = CATALOGO_MOCK_IA[canal][indice];
+  return { ...mock, local: await localNaRota(mock.contexto?.rota) };
+}
 
 export const tiposAnalise = ["image", "text", "audio"] as const;
 export type TipoAnalise = (typeof tiposAnalise)[number];
@@ -15,7 +22,7 @@ export async function enviarParaAnalise(
   const url = urls[tipo];
   if (!url) {
     console.log("[analise] simulado", tipo, payload);
-    return { status: 200, corpo: CATALOGO_MOCK_IA[tipo][escolherMock(tipo, payload.from_phone)] };
+    return { status: 200, corpo: await respostaMock(tipo, escolherMock(tipo, payload.from_phone)) };
   }
 
   const resposta = await fetch(url, {

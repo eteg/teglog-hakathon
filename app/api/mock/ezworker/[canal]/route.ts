@@ -1,3 +1,4 @@
+import { respostaMock } from "@/lib/analise";
 import { CATALOGO_MOCK_IA, escolherMock, type CanalMockIa } from "@/lib/mock-ia-catalogo";
 
 async function responder(req: Request, ctx: RouteContext<"/api/mock/ezworker/[canal]">) {
@@ -20,7 +21,7 @@ async function responder(req: Request, ctx: RouteContext<"/api/mock/ezworker/[ca
     indice = escolherMock(canal as CanalMockIa, corpo.from_phone);
   }
 
-  return Response.json(catalogo[indice], { headers: { "x-mock-indice": String(indice + 1) } });
+  return Response.json(await respostaMock(canal as CanalMockIa, indice), { headers: { "x-mock-indice": String(indice + 1) } });
 }
 
 export { responder as GET, responder as POST };

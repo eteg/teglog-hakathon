@@ -8,7 +8,7 @@ const diasAFrente = (d: number) => {
   return x.toISOString().slice(0, 10);
 };
 
-export const CASOS_SEMENTE: OcorrenciaEzworker[] = [
+export const CASOS_SEMENTE: Omit<OcorrenciaEzworker, "local">[] = [
   {
     id: "OC-1031",
     canal: "audio",

@@ -51,7 +51,8 @@ async function reservarTarefas(cooldownSegundos: number) {
 }
 
 async function criarCaso(mensagem: MensagemWhatsapp, corpo: unknown) {
-  const validada = validarOcorrencia(corpo);
+  const { latitude, longitude } = mensagem;
+  const validada = validarOcorrencia(corpo, latitude !== null && longitude !== null ? { latitude, longitude } : undefined);
   if (!validada.ok) throw new Error(`resposta da IA inválida: ${validada.erros.join("; ")}`);
 
   const hashDoTexto = mensagem.texto ? await sha256Hex(new TextEncoder().encode(mensagem.texto).buffer) : undefined;

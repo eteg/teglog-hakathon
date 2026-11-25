@@ -5,6 +5,7 @@ import {
   Cloud,
   ExternalLink,
   Fingerprint,
+  MapPin,
   MessageSquareText,
   ScanSearch,
   TriangleAlert,
@@ -74,7 +75,18 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
             Ocorrências da carga
           </Link>
         </Button>
-        <PageHeader title={<span className="font-mono">{c.id}</span>} description={c.resumo} />
+        <PageHeader
+          title={<span className="font-mono">{c.id}</span>}
+          description={c.resumo}
+          actions={
+            <Button asChild variant="ghost" className="text-foreground min-w-40 gap-1.5 whitespace-nowrap max-sm:h-11">
+              <Link href={`/painel?caso=${c.id}`}>
+                <MapPin className="size-5" />
+                Ver no mapa (demo)
+              </Link>
+            </Button>
+          }
+        />
         <div className="flex flex-wrap items-center gap-2">
           <BadgeTipo tipo={c.tipo} />
           <BadgeGravidade g={c.gravidade} />

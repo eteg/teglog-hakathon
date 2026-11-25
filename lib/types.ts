@@ -47,6 +47,11 @@ export interface Evidencia {
   erro_armazenamento?: string;
 }
 
+export interface Local {
+  latitude: number;
+  longitude: number;
+}
+
 export interface Apolice {
   franquia: number;
   cobre_descarga: boolean;
@@ -81,6 +86,7 @@ export interface OcorrenciaEzworker {
   produto?: string;
   volumes_afetados?: number;
   gravidade: Gravidade;
+  local: Local;
   resumo?: string;
   transcricao?: string;
   evidencias: Evidencia[];

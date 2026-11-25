@@ -57,6 +57,15 @@ export type MensagemWhatsapp = typeof mensagensWhatsapp.$inferSelect;
 export type NovaMensagemWhatsapp = typeof mensagensWhatsapp.$inferInsert;
 export type TarefaAnalise = typeof tarefasAnalise.$inferSelect;
 
+// Rotas cadastradas ("Origem → Destino"), cada uma com o traçado da rodovia em pontos [latitude, longitude].
+export const rotas = sqliteTable("rotas", {
+  id: integer("id").primaryKey({ autoIncrement: true }),
+  nome: text("nome").notNull().unique(),
+  origem: text("origem").notNull(),
+  destino: text("destino").notNull(),
+  tracado: text("tracado", { mode: "json" }).$type<[number, number][]>().notNull(),
+});
+
 // Ocorrências recebidas do ezworker (via webhook). O caso completo fica em `dados` (JSON);
 // as colunas soltas servem para ordenar e filtrar sem abrir o JSON.
 export const casos = sqliteTable("casos", {
@@ -64,6 +73,9 @@ export const casos = sqliteTable("casos", {
   id: text("id").notNull().unique(),
   status: text("status").notNull(),
   recebidoEm: text("recebido_em").notNull(),
+  rotaId: integer("rota_id").references(() => rotas.id),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   dados: text("dados", { mode: "json" }).$type<Caso>().notNull(),
 });
 
