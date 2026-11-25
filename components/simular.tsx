@@ -23,28 +23,6 @@ const ACEITA: Record<Canal, string> = {
   text: 'text/plain,application/pdf',
 }
 
-/** Botão de demo: simula uma mensagem do WhatsApp que passa pela fila e pela IA (mock) e vira caso. */
-export function SimularWhatsapp() {
-  const [enviando, setEnviando] = useState(false)
-  return (
-    <Button
-      variant="ghost"
-      className="text-foreground min-w-40 gap-1.5 whitespace-nowrap max-sm:h-11"
-      isLoading={enviando}
-      disabled={enviando}
-      title="Simula uma mensagem de WhatsApp (texto, foto ou áudio) chegando e virando caso"
-      onClick={async () => {
-        setEnviando(true)
-        await fetch('/api/simular/whatsapp', { method: 'POST' }).finally(() => setEnviando(false))
-        window.dispatchEvent(new Event(EVENTO_ATUALIZAR))
-      }}
-    >
-      {!enviando && <Webhook className="size-5" />}
-      Simular webhook (demo)
-    </Button>
-  )
-}
-
 /**
  * Simula o ezworker enquanto a integração real não existe: escolhe um cenário,
  * envia (com arquivo opcional) para o mock e mostra o JSON que ele devolveria.
