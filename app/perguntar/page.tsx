@@ -1,7 +1,7 @@
 import { PageContainer, PageHeader } from '@/components/page-header'
 import { PerguntaGestor } from '@/components/pergunta-gestor'
 
-export const metadata = { title: 'Pergunte ao prejuízo · Recupera' }
+export const metadata = { title: 'Pergunte ao prejuízo' }
 
 export default function Perguntar() {
   return (

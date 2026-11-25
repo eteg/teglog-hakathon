@@ -9,7 +9,7 @@ import { Input } from '@/components/ui/input'
 import { Skeleton } from '@/components/ui/skeleton'
 import type { GrupoPadrao } from '@/lib/padroes-emergentes'
 import { brl, rotuloSubtipo } from '@/lib/regras'
-import { Badge, BadgeTipo, Section } from './ui'
+import { Badge, BadgeTipo, Section, StatBox, StatGrid } from './ui'
 
 /** Padrões emergentes (F6): grupos de relatos parecidos, com custo, rotas e nome dado pelo analista. */
 export function PadroesEmergentes() {
@@ -95,16 +95,10 @@ function Grupo({ grupo: g, onNomeado }: { grupo: GrupoPadrao; onNomeado: (nome: 
         <span className="text-foreground text-sm font-bold">{rotuloSubtipo(g.subtipo)}</span>
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-muted/50 rounded-md p-3">
-          <span className="text-muted-foreground block text-xs font-bold tracking-wider">Custo do grupo</span>
-          <span className="text-lg font-bold tabular-nums">{brl(g.custo)}</span>
-        </div>
-        <div className="bg-muted/50 rounded-md p-3">
-          <span className="text-muted-foreground block text-xs font-bold tracking-wider">Relatos</span>
-          <span className="text-lg font-bold tabular-nums">{g.quantidade}</span>
-        </div>
-      </div>
+      <StatGrid>
+        <StatBox label="Custo do grupo" value={brl(g.custo)} />
+        <StatBox label="Relatos" value={g.quantidade} />
+      </StatGrid>
 
       <div>
         <span className="text-muted-foreground block text-sm font-bold tracking-wider">Rotas</span>

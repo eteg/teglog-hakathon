@@ -1,7 +1,7 @@
 import { PageContainer, PageHeader } from '@/components/page-header'
 import { PadroesEmergentes } from '@/components/padroes-emergentes'
 
-export const metadata = { title: 'Padrões emergentes · Recupera' }
+export const metadata = { title: 'Padrões emergentes' }
 
 export default function Padroes() {
   return (

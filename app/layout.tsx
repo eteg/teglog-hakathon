@@ -2,13 +2,14 @@ import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
 import { AppShell } from '@/components/app-layout/app-shell'
+import { PRODUTO } from '@/lib/produto'
 import './globals.css'
 
 const inter = Inter({ variable: '--font-inter', subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'Recupera',
-  description: 'Ocorrências logísticas: do relato da transportadora à devolutiva ao cliente.',
+  title: { default: PRODUTO.nome, template: `%s · ${PRODUTO.nome}` },
+  description: PRODUTO.descricao,
 }
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {

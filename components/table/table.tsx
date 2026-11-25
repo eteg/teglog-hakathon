@@ -24,6 +24,8 @@ export type TableColumn<TData> = {
   id: string | number
   title?: string
   width?: string | number
+  /** Largura mínima (px) de coluna flexível (sem `width`); entra no cálculo da largura mínima da tabela. */
+  minWidth?: number
   align?: 'left' | 'center' | 'right'
   sortable?: boolean
   className?: string
@@ -63,6 +65,16 @@ function widthStyle<TData>(column: TableColumn<TData>): React.CSSProperties | un
   if (column.width === undefined) return undefined
   const width = typeof column.width === 'number' ? `${column.width}px` : column.width
   return { width, minWidth: width }
+}
+
+function larguraMinima<TData>(columns: TableColumn<TData>[]): number | undefined {
+  let total = 0
+  for (const c of columns) {
+    if (typeof c.width === 'number') total += c.width
+    else if (c.minWidth) total += c.minWidth
+    else return undefined
+  }
+  return total
 }
 
 function cellContent<TData>(record: TData, column: TableColumn<TData>) {
@@ -119,6 +131,9 @@ export function Table<TData>({
   return (
     <div className="flex w-full flex-col gap-4">
       <UiTable
+        // Como no mca-refactor: a tabela nunca fica mais estreita que a soma das colunas;
+        // se não couber, o container rola na horizontal em vez de cortar badges e valores.
+        style={{ minWidth: larguraMinima(displayColumns) }}
         className={cn('w-full transition-opacity duration-200', isFetching && 'opacity-50', className, classNames?.table)}
         containerClassName={containerClassName}
       >

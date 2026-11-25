@@ -1,5 +1,5 @@
 // Contrato da ocorrência tipada que o ezworker devolve (via webhook).
-// Baseado no schema da proposta "Recupera". Os três endpoints
+// Baseado no schema da proposta original do produto (hoje teglog). Os três endpoints
 // (/ezworker/audio, /image, /text) devolvem este mesmo formato.
 
 export type TipoOcorrencia =
