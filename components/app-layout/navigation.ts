@@ -1,4 +1,4 @@
-import { ChartColumn, ClipboardList, ShieldCheck, type LucideIcon } from 'lucide-react'
+import { ChartColumn, ClipboardList, type LucideIcon } from 'lucide-react'
 
 export type AppNavigationGroup = {
   title: string
@@ -23,11 +23,6 @@ export const NAVIGATION: AppNavigationGroup[] = [
       { label: 'Pergunte ao prejuízo', href: '/perguntar' },
       { label: 'Padrões emergentes', href: '/padroes' },
     ],
-  },
-  {
-    title: 'Qualidade',
-    icon: ShieldCheck,
-    items: [{ label: 'Critérios de qualidade', href: '/qualidade' }],
   },
 ]
 
