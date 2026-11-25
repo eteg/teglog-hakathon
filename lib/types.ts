@@ -36,6 +36,15 @@ export interface Evidencia {
   hash?: string;
   /** Quando a evidência foi capturada (ISO). */
   capturada_em?: string;
+  /** Chave do arquivo no R2 (servido em /api/files/<key>). */
+  key?: string;
+  content_type?: string;
+  tamanho?: number;
+  nome_arquivo?: string;
+  /** Arquivo inline vindo do ezworker; é movido para o R2 e descartado do registro. */
+  conteudo_base64?: string;
+  /** Falha ao copiar a mídia para o R2 (a URL original é mantida). */
+  erro_armazenamento?: string;
 }
 
 export interface Apolice {

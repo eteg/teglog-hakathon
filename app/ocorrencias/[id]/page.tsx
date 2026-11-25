@@ -1,10 +1,21 @@
-import { ArrowLeft, CircleCheck, CircleDashed, Fingerprint, MessageSquareText, ScanSearch, TriangleAlert } from 'lucide-react'
+import {
+  ArrowLeft,
+  CircleCheck,
+  CircleDashed,
+  Cloud,
+  ExternalLink,
+  Fingerprint,
+  MessageSquareText,
+  ScanSearch,
+  TriangleAlert,
+} from 'lucide-react'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
 import { connection } from 'next/server'
 import { Suspense } from 'react'
 
 import { AcoesCaso } from '@/components/acoes-caso'
+import { AnexarEvidencia } from '@/components/anexar-evidencia'
 import { PageContainer, PageHeader } from '@/components/page-header'
 import {
   BadgeGravidade,
@@ -20,7 +31,8 @@ import {
 } from '@/components/ui'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
-import { ROTULO_CAMPO, ROTULO_DOCUMENTO, brl, camposEmRevisao, custoOcorrencia, custoSeguro } from '@/lib/regras'
+import { urlDaEvidencia } from '@/lib/evidencias'
+import { ROTULO_CAMPO, ROTULO_DOCUMENTO, ROTULO_EVIDENCIA, brl, camposEmRevisao, custoOcorrencia, custoSeguro } from '@/lib/regras'
 import { obter } from '@/lib/store'
 import type { Caso, Evidencia } from '@/lib/types'
 
@@ -178,6 +190,22 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
                     <dd className="text-foreground min-w-0 font-mono break-all" title={e.hash}>
                       {e.hash ?? 'não informado'}
                     </dd>
+                    <dt className="flex items-center gap-1">
+                      <Cloud className="size-3" />
+                      Arquivo
+                    </dt>
+                    <dd className="text-foreground min-w-0 break-all">
+                      {e.key ? (
+                        <>
+                          Armazenado no R2{e.tamanho ? ` · ${(e.tamanho / 1024).toFixed(0)} KB` : ''}
+                        </>
+                      ) : e.url ? (
+                        'Somente link externo'
+                      ) : (
+                        <span className="text-muted-foreground">sem arquivo</span>
+                      )}
+                      {e.erro_armazenamento && <span className="block text-[#B45309]">Falha ao copiar: {e.erro_armazenamento}</span>}
+                    </dd>
                   </dl>
                   <Midia e={e} />
                 </li>
@@ -195,6 +223,7 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
                 </li>
               ))}
             </ul>
+            {c.status !== 'encerrado' && <AnexarEvidencia key={c.faltando.join('|')} casoId={c.id} pendencias={c.faltando} />}
           </Section>
 
           <Section title="Linha do tempo">
@@ -279,24 +308,29 @@ function CampoConf({ label, valor, conf }: { label: string; valor?: string; conf
   )
 }
 
+/** Mostra a mídia (do R2 quando houver chave; senão a URL original). */
 function Midia({ e }: { e: Evidencia }) {
-  if (!e.url) return null
-  if (e.tipo === 'audio_relato') return <audio controls src={e.url} className="w-full" />
-  if (e.tipo === 'video') return <video controls src={e.url} className="max-h-72 w-full rounded-md" />
-  // eslint-disable-next-line @next/next/no-img-element
-  return <img src={e.url} alt={ROTULO_EVIDENCIA[e.tipo] ?? e.tipo} className="max-h-72 rounded-md object-contain" />
-}
-
-const ROTULO_EVIDENCIA: Record<string, string> = {
-  foto_avaria: 'Foto da avaria',
-  foto_canhoto: 'Foto do canhoto',
-  danfe: 'DANFE / nota fiscal',
-  etiqueta: 'Etiqueta',
-  audio_relato: 'Áudio do relato',
-  video: 'Vídeo',
-  boletim_ocorrencia: 'Boletim de ocorrência',
-  diario_bordo: 'Diário de bordo',
-  tacografo: 'Disco de tacógrafo',
-  prontuario: 'Prontuário médico',
-  texto: 'Relato em texto',
+  const src = urlDaEvidencia(e)
+  if (!src) return null
+  const tipo = e.content_type ?? ''
+  const rotulo = ROTULO_EVIDENCIA[e.tipo] ?? e.tipo
+  if (tipo.startsWith('audio/') || (!tipo && e.tipo === 'audio_relato'))
+    return <audio controls preload="none" src={src} className="w-full" />
+  if (tipo.startsWith('video/') || (!tipo && e.tipo === 'video'))
+    return <video controls preload="metadata" src={src} className="max-h-72 w-full rounded-md" />
+  if (tipo.startsWith('image/') || (!tipo && e.tipo.startsWith('foto')))
+    return (
+      <a href={src} target="_blank" rel="noreferrer" className="w-fit">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt={rotulo} loading="lazy" className="max-h-72 rounded-md border object-contain" />
+      </a>
+    )
+  return (
+    <Button asChild variant="outline" size="sm" className="w-fit gap-1.5">
+      <a href={src} target="_blank" rel="noreferrer">
+        <ExternalLink />
+        Abrir {e.nome_arquivo ?? 'arquivo'}
+      </a>
+    </Button>
+  )
 }

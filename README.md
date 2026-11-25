@@ -120,6 +120,8 @@ npm run db:migrate:local   # cria as tabelas no D1 local
 npm run dev                # http://localhost:3000
 ```
 
+Sem `CLOUDFLARE_API_TOKEN`, o `next dev` usa D1 e R2 emulados (bindings `"remote": true` ficam desligados; ver `next.config.ts`).
+
 Na fila, o botão **Simular webhook (demo)** injeta uma ocorrência no formato do ezworker.
 
 ## Contrato do webhook
@@ -155,6 +157,34 @@ Header opcional `x-webhook-secret` quando `EZWORKER_WEBHOOK_SECRET` estiver defi
 ```
 
 Obrigatórios: `canal`, `tipo`, `subtipo`. Resposta `201 { id, status, pagador }` ou `422` com os erros de schema.
+
+### Mídias das evidências (R2)
+
+Cada item de `evidencias` pode trazer o arquivo de duas formas; o app copia para o R2 em
+`evidencias/<caso>/<uuid>.<ext>`, calcula o SHA-256 e passa a servir por `/api/files/<key>`:
+
+- `"url": "https://..."`: o app baixa (até 10 MB, timeout de 15 s);
+- `"conteudo_base64": "...", "content_type": "image/jpeg", "nome_arquivo": "foto.jpg"`: o base64 não é gravado no D1.
+
+Campos opcionais: `hash` (SHA-256 do ezworker; se divergir do calculado, fica registrado) e `capturada_em`.
+Falha ao copiar não derruba o webhook: a evidência mantém a URL e ganha `erro_armazenamento`.
+SVG/HTML são recusados (poderiam executar script servidos pelo próprio domínio).
+
+Pela tela do caso, o cliente anexa evidências: `POST /api/ocorrencias/<id>/evidencias`
+(multipart: `file`, `tipo`, `resolve` opcional com o nome da pendência que o arquivo resolve).
+
+### Rotas do contrato front ↔ back
+
+| Chamada | Rota |
+|---|---|
+| Listar ocorrências (filtros, ordenação, paginação) | `GET /api/ocorrencias?q&tipo&status&transportadora&motorista&rota&situacao&ordenar&direcao&page&pageSize` |
+| Buscar uma ocorrência | `GET /api/ocorrencias/<id>` |
+| Ações (aprovar, responder, encerrar, confirmar/corrigir campo) | `POST /api/ocorrencias/<id>` |
+| Anexar evidência | `POST /api/ocorrencias/<id>/evidencias` |
+| Fila de revisão | `GET /api/revisao` |
+| Pergunta do gestor | `POST /api/perguntas { pergunta }` |
+| Padrões emergentes / dar nome | `GET /api/padroes`, `PUT /api/padroes/<chave> { nome }` |
+| Indicadores por dimensão (F1) | pendente: aguarda a integração do back |
 
 ## Onde está cada coisa
 

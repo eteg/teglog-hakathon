@@ -19,8 +19,9 @@ import {
   situacaoRegistro,
   statusInicial,
 } from './regras'
+import { armazenarEvidencias, guardarArquivo } from './evidencias'
 import { CASOS_SEMENTE } from './semente'
-import type { CampoRevisavel, Caso, OcorrenciaEzworker, PaginaCasos, StatusCaso } from './types'
+import type { CampoRevisavel, Caso, Evidencia, OcorrenciaEzworker, PaginaCasos, StatusCaso, TipoEvidencia } from './types'
 
 const PRIMEIRO_NUMERO = 1040
 
@@ -56,19 +57,31 @@ function montarCaso(o: OcorrenciaEzworker, id: string): Caso {
 
 async function inserir(o: OcorrenciaEzworker): Promise<Caso> {
   const db = await getDb()
+  // Arquivos em base64 não vão para o D1: só a chave no R2, depois de copiados.
+  const semConteudo = o.evidencias.map(({ conteudo_base64: _, ...e }) => (void _, e))
   // O número do caso vem do autoincremento: insere com id provisório e renomeia.
   const provisorio = o.id ?? `tmp-${crypto.randomUUID()}`
-  const base = montarCaso(o, provisorio)
+  const base = montarCaso({ ...o, evidencias: semConteudo }, provisorio)
   const [linha] = await db
     .insert(casos)
     .values({ id: provisorio, status: base.status, recebidoEm: base.recebido_em, dados: base })
     .onConflictDoNothing({ target: casos.id })
     .returning({ seq: casos.seq })
 
-  if (o.id || !linha) return base
+  if (!linha) return base // id do ezworker já recebido antes (reenvio)
 
-  const id = `OC-${PRIMEIRO_NUMERO + linha.seq}`
+  const id = o.id ?? `OC-${PRIMEIRO_NUMERO + linha.seq}`
   const caso: Caso = { ...base, id }
+  // Copia fotos/áudios/vídeos para o R2 com SHA-256 calculado.
+  if (o.evidencias.some((e) => e.url || e.conteudo_base64)) {
+    caso.evidencias = await armazenarEvidencias(id, o.evidencias)
+    const falhas = caso.evidencias.filter((e) => e.erro_armazenamento)
+    caso.timeline.push({
+      em: new Date().toISOString(),
+      titulo: `Evidências copiadas para o R2 (${caso.evidencias.length - falhas.length}/${caso.evidencias.length})`,
+      detalhe: falhas.length ? falhas.map((e) => e.erro_armazenamento).join('; ') : undefined,
+    })
+  }
   caso.devolutiva = gerarDevolutiva(caso)
   await db.update(casos).set({ id, dados: caso }).where(eq(casos.seq, linha.seq))
   return caso
@@ -245,4 +258,34 @@ function recalcularCustos(caso: Caso) {
   if (!caso.custos_informados?.seguro) delete ctx.custo_seguro
   const base = { ...caso, contexto: ctx }
   caso.contexto = { ...ctx, custo_ocorrencia: custoOcorrencia(base), custo_seguro: custoSeguro(base, caso.decisao) }
+}
+
+/** Cliente/analista anexa uma evidência ao caso (vai para o R2 e entra no dossiê). */
+export async function anexarEvidencia(
+  id: string,
+  arquivo: { dados: ArrayBuffer; contentType: string; nome: string },
+  meta: { tipo: TipoEvidencia; descricao?: string; resolve?: string },
+): Promise<Caso | undefined> {
+  const caso = await obter(id)
+  if (!caso) return undefined
+  const salvo = await guardarArquivo(id, arquivo.dados, arquivo.contentType, arquivo.nome)
+  const agora = new Date().toISOString()
+  const evidencia: Evidencia = {
+    tipo: meta.tipo,
+    legivel: true,
+    descricao: meta.descricao || meta.resolve || arquivo.nome,
+    capturada_em: agora,
+    ...salvo,
+  }
+  caso.evidencias = [...caso.evidencias, evidencia]
+  if (meta.resolve) caso.faltando = caso.faltando.filter((f) => f !== meta.resolve)
+  caso.timeline.push({
+    em: agora,
+    titulo: meta.resolve ? `Pendência resolvida: ${meta.resolve}` : 'Evidência anexada',
+    detalhe: `${arquivo.nome} · SHA-256 ${salvo.hash?.slice(0, 12)}…`,
+  })
+  if (caso.status === 'aguardando_evidencia' && caso.faltando.length === 0) caso.status = statusInicial(caso, caso.decisao)
+  caso.devolutiva = gerarDevolutiva(caso)
+  await salvar(caso)
+  return caso
 }

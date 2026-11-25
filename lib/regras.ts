@@ -290,3 +290,32 @@ export const ROTULO_SITUACAO: Record<SituacaoRegistro, string> = {
   incompleto: "Incompleto",
   em_revisao: "Em revisão",
 };
+
+export const ROTULO_EVIDENCIA: Record<string, string> = {
+  foto_avaria: "Foto da avaria",
+  foto_canhoto: "Foto do canhoto",
+  danfe: "DANFE / nota fiscal",
+  etiqueta: "Etiqueta",
+  audio_relato: "Áudio do relato",
+  video: "Vídeo",
+  boletim_ocorrencia: "Boletim de ocorrência",
+  diario_bordo: "Diário de bordo",
+  tacografo: "Disco de tacógrafo",
+  prontuario: "Prontuário médico",
+  texto: "Relato em texto",
+};
+
+/** Sugere o tipo de evidência a partir do nome da pendência (ex.: "foto da etiqueta" → etiqueta). */
+export function tipoParaPendencia(pendencia: string): string {
+  const p = pendencia.toLowerCase();
+  if (p.includes("etiqueta")) return "etiqueta";
+  if (p.includes("tacógrafo") || p.includes("tacografo")) return "tacografo";
+  if (p.includes("prontuário") || p.includes("prontuario")) return "prontuario";
+  if (p.includes("boletim") || p.includes("prf")) return "boletim_ocorrencia";
+  if (p.includes("nota") || p.includes("danfe") || p.includes("nf")) return "danfe";
+  if (p.includes("canhoto")) return "foto_canhoto";
+  if (p.includes("diário") || p.includes("diario")) return "diario_bordo";
+  if (p.includes("vídeo") || p.includes("video")) return "video";
+  if (p.includes("áudio") || p.includes("audio")) return "audio_relato";
+  return "foto_avaria";
+}
