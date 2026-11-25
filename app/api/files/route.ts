@@ -1,9 +1,12 @@
+import { exigir } from "@/lib/acesso";
 import { getBucket, newObjectKey } from "@/lib/storage";
 
 const MAX_BYTES = 10 * 1024 * 1024; // 10 MB
 
 /** Upload via multipart/form-data, campo "file". Retorna a chave no R2. */
 export async function POST(request: Request) {
+  const negado = await exigir(request, "escrever");
+  if (negado) return negado;
   const form = await request.formData();
   const file = form.get("file");
 

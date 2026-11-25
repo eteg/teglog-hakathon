@@ -158,6 +158,13 @@ export interface Caso extends OcorrenciaEzworker {
   timeline: EventoTimeline[];
   devolutiva?: string;
   revisao?: { confirmados: CampoRevisavel[]; correcoes: CorrecaoCampo[] };
+  /**
+   * Relato original, com os dados pessoais (critério 6). Fica só no nosso banco, como prova;
+   * o que foi para a IA é a versão mascarada (`transcricao`/`resumo`).
+   */
+  relato_original?: string;
+  /** Dados pessoais escondidos antes de ir para a IA (só tipo e marcador; o valor fica no original). */
+  pii_mascarado?: { tipo: string; marcador: string }[];
   /** Quais custos vieram prontos do ezworker (os demais são calculados pelas regras). */
   custos_informados?: { ocorrencia: boolean; seguro: boolean };
 }

@@ -10,6 +10,7 @@ import { CATALOGO_MOCK_IA } from "@/lib/mock-ia-catalogo";
 import { getBucket } from "@/lib/storage";
 import { listar } from "@/lib/store";
 import { interpretarPayload } from "@/lib/whatsapp";
+import { exigir } from "@/lib/acesso";
 
 const CANAIS = ["text", "image", "audio"] as const;
 const PREFIXO_TELEFONE = "5519999990";
@@ -51,7 +52,9 @@ async function sortearTelefone() {
   return candidatos[Math.floor(Math.random() * candidatos.length)];
 }
 
-export async function POST() {
+export async function POST(request: Request) {
+  const negado = await exigir(request, "escrever");
+  if (negado) return negado;
   await listar();
 
   const telefone = await sortearTelefone();

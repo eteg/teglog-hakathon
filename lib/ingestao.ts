@@ -4,6 +4,7 @@ import { mensagensWhatsapp, tarefasAnalise, type MensagemWhatsapp } from "@/db/s
 import { tiposAnalise } from "@/lib/analise";
 import { getDb } from "@/lib/db";
 import { getBucket, newObjectKey } from "@/lib/storage";
+import { semPII, telefoneParaLog } from "@/lib/pii";
 import { obterMidia, type MensagemInterpretada } from "@/lib/whatsapp";
 
 export async function guardarMidia(mensagem: MensagemWhatsapp) {
@@ -57,7 +58,7 @@ export async function ingerirMensagens(mensagens: MensagemInterpretada[]) {
     }
 
     const { id: mensagemId, telefone, tipo, texto } = salva;
-    console.log("[ingestao] salva", { mensagemId, telefone, tipo, texto });
+    console.log("[ingestao] salva", { mensagemId, telefone: telefoneParaLog(telefone), tipo, texto: semPII(texto) });
 
     if (salva.idMidia) {
       try {
@@ -70,7 +71,7 @@ export async function ingerirMensagens(mensagens: MensagemInterpretada[]) {
 
     if (tipo === "location") {
       const { latitude, longitude } = salva;
-      console.log("[localizacao] salva", { mensagemId, telefone, latitude, longitude });
+      console.log("[localizacao] salva", { mensagemId, telefone: telefoneParaLog(telefone), latitude, longitude });
     }
     await criarTarefa(salva);
   }

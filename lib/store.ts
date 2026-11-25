@@ -67,13 +67,13 @@ function montarCaso(o: OcorrenciaEzworker, id: string): Caso {
   return caso
 }
 
-async function inserir(o: OcorrenciaEzworker): Promise<Caso> {
+async function inserir(o: OcorrenciaEzworker, extra?: Pick<Caso, 'relato_original' | 'pii_mascarado'>): Promise<Caso> {
   const db = await getDb()
   // Arquivos em base64 não vão para o D1: só a chave no R2, depois de copiados.
   const semConteudo = o.evidencias.map(({ conteudo_base64: _, ...e }) => (void _, e))
   // O número do caso vem do autoincremento: insere com id provisório e renomeia.
   const provisorio = o.id ?? `tmp-${crypto.randomUUID()}`
-  const base = montarCaso({ ...o, evidencias: semConteudo }, provisorio)
+  const base = { ...montarCaso({ ...o, evidencias: semConteudo }, provisorio), ...extra }
   const rota = await obterRota(o.contexto?.rota)
   const [linha] = await db
     .insert(casos)
@@ -150,8 +150,8 @@ async function consultarPontos() {
   }))
 }
 
-export async function receber(o: OcorrenciaEzworker): Promise<Caso> {
-  return inserir(o)
+export async function receber(o: OcorrenciaEzworker, extra?: Pick<Caso, 'relato_original' | 'pii_mascarado'>): Promise<Caso> {
+  return inserir(o, extra)
 }
 
 export async function listar(): Promise<Caso[]> {

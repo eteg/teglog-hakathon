@@ -4,6 +4,7 @@
 //
 // Campos: arquivo (opcional, até 10 MB), texto (opcional), cenario (opcional, id do catálogo),
 //         entregar ("false" para só ver o JSON, sem criar o caso).
+import { exigir } from "@/lib/acesso";
 import { MAX_BYTES } from "@/lib/evidencias";
 import { CANAIS, simularEzworker } from "@/lib/mock-fluxo";
 import type { Canal } from "@/lib/types";
@@ -16,6 +17,8 @@ const MIME_POR_CANAL: Record<Canal, RegExp> = {
 };
 
 export async function POST(req: Request, ctx: RouteContext<"/api/mock/ezworker/[canal]">) {
+  const negado = await exigir(req, "escrever");
+  if (negado) return negado;
   const { canal } = await ctx.params;
   if (!CANAIS.includes(canal as Canal))
     return Response.json({ erro: `canal inválido: ${canal}. Use ${CANAIS.join(", ")}.` }, { status: 404 });

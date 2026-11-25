@@ -7,5 +7,13 @@ WHATSAPP_ACCESS_TOKEN=changeme
 COOLDOWN_SECONDS=5
 APP_URL=http://localhost:3000
 INTERNAL_SECRET=changeme
-# Token only for agents (MCP server, manager questions): opens /api/read/* and nothing else.
+# Acesso mínimo (critério 4). Um token de leitura só, para agentes e integrações:
+#   - abre /api/read/* (MCP, perguntas do gestor) e as consultas da API principal;
+#   - nunca altera dados. Envie como "Authorization: Bearer <token>" (ou x-api-key).
 READ_API_TOKEN=changeme-read
+# Chave de analista para scripts que alteram dados (aprovar, corrigir, anexar). Gere com: openssl rand -hex 24
+ANALYST_API_KEY=troque-por-uma-chave-de-analista
+# Login (JWT em cookie httpOnly, 8 h). Opcional: sem estas linhas vale o mock teglog / teglog.
+# JWT_SECRET=gere-com-openssl-rand-hex-32
+# AUTH_USUARIO=teglog
+# AUTH_SENHA=teglog
