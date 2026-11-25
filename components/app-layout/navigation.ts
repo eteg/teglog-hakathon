@@ -19,7 +19,7 @@ export const NAVIGATION: AppNavigationGroup[] = [
     title: 'Análise',
     icon: ChartColumn,
     items: [
-      { label: 'Onde está o prejuízo', href: '/painel' },
+      { label: 'Indicativo de perda', href: '/painel' },
       { label: 'Pergunte ao prejuízo', href: '/perguntar' },
       { label: 'Padrões emergentes', href: '/padroes' },
     ],

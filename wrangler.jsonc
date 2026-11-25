@@ -1,36 +1,31 @@
 {
-	"$schema": "node_modules/wrangler/config-schema.json",
-	"name": "reporta",
-	"main": ".open-next/worker.js",
-	"compatibility_date": "2026-11-01",
-	"compatibility_flags": [
-		"nodejs_compat",
-		"global_fetch_strictly_public"
-	],
-	"assets": {
-		"directory": ".open-next/assets",
-		"binding": "ASSETS"
-	},
-	"observability": {
-		"enabled": true
-	},
-	"d1_databases": [
-		{
-			"binding": "DB",
-			"database_name": "reporta",
-			"database_id": "569c3399-2e49-44e4-a011-711c900baea7",
-			"migrations_dir": "db/migrations"
-		}
-	],
-	"r2_buckets": [
-		{
-			"binding": "BUCKET",
-			"bucket_name": "reporta"
-		},
-		{
-			"bucket_name": "reporta",
-			"binding": "reporta",
-			"remote": true
-		}
-	]
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "reporta",
+  "main": "worker.ts",
+  "triggers": {
+    "crons": ["* * * * *"],
+  },
+  "compatibility_date": "2026-11-01",
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS",
+  },
+  "observability": {
+    "enabled": true,
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "reporta",
+      "database_id": "569c3399-2e49-44e4-a011-711c900baea7",
+      "migrations_dir": "db/migrations",
+    },
+  ],
+  "r2_buckets": [
+    {
+      "binding": "BUCKET",
+      "bucket_name": "reporta",
+    },
+  ],
 }

@@ -1,6 +1,12 @@
 # Copie para .dev.vars para definir segredos locais (lidos pelo wrangler/OpenNext).
 # No Worker publicado use: npx wrangler secret put NOME
-# EXAMPLE_SECRET=changeme
+WHATSAPP_MODE=mock
+WHATSAPP_VERIFY_TOKEN=changeme
+WHATSAPP_APP_SECRET=changeme
+WHATSAPP_ACCESS_TOKEN=changeme
+COOLDOWN_SECONDS=5
+APP_URL=http://localhost:3000
+INTERNAL_SECRET=changeme
 # ANTHROPIC_API_KEY=sk-ant-...
 # EXTRACTION_MODEL=claude-haiku-5-5
 # TRANSCRIPTION_WEBHOOK_SECRET=changeme

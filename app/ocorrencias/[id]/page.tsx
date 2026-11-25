@@ -20,7 +20,6 @@ import { PageContainer, PageHeader } from '@/components/page-header'
 import {
   BadgeGravidade,
   BadgePagador,
-  BadgeSituacao,
   BadgeStatus,
   BadgeTipo,
   Canal,
@@ -28,6 +27,7 @@ import {
   Field,
   Prazo,
   Section,
+  TextoSituacao,
 } from '@/components/ui'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -78,8 +78,7 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
         <div className="flex flex-wrap items-center gap-2">
           <BadgeTipo tipo={c.tipo} />
           <BadgeGravidade g={c.gravidade} />
-          <BadgeStatus status={c.status} />
-          <BadgeSituacao caso={c} />
+          <BadgeStatus caso={c} />
           <Canal canal={c.canal} />
           <span className="text-muted-foreground text-sm">
             · Recebido em {new Date(c.recebido_em).toLocaleString('pt-BR')}
@@ -126,7 +125,7 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="desktop:grid-cols-[minmax(0,1fr)_360px] grid gap-6">
         <div className="flex min-w-0 flex-col gap-6">
-          <Section title="O que foi relatado">
+          <Section title="O que foi relatado" action={<TextoSituacao caso={c} />}>
             <div className="grid grid-cols-1 gap-x-4 gap-y-3 min-[481px]:grid-cols-2">
               <CampoConf label="NF" valor={c.nf} conf={c.confianca.nf} />
               <CampoConf label="Transportadora" valor={c.transportadora} conf={c.confianca.transportadora} />

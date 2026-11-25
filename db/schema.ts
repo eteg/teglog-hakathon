@@ -2,21 +2,60 @@ import { sql } from "drizzle-orm";
 import { check, index, integer, primaryKey, real, sqliteTable, text, uniqueIndex } from "drizzle-orm/sqlite-core";
 import type { Caso } from "@/lib/types";
 
-// Tabela de exemplo — ajuste ao domínio do Reporta.
-export const reports = sqliteTable("reports", {
+const timestamps = {
+  criadoEm: text("criado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+  atualizadoEm: text("atualizado_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+};
+
+export const mensagensWhatsapp = sqliteTable("mensagens_whatsapp", {
   id: integer("id").primaryKey({ autoIncrement: true }),
-  title: text("title").notNull(),
-  description: text("description"),
-  status: text("status", { enum: ["open", "in_progress", "resolved"] })
+  idMensagemWhatsapp: text("id_mensagem_whatsapp").notNull().unique(),
+  telefone: text("telefone").notNull(),
+  tipo: text("tipo", { enum: ["text", "image", "audio", "location", "other"] }).notNull(),
+  texto: text("texto"),
+  idMidia: text("id_midia"),
+  tipoConteudo: text("tipo_conteudo"),
+  chaveArmazenamento: text("chave_armazenamento"),
+  statusMidia: text("status_midia", { enum: ["nenhuma", "pendente", "salva", "falhou"] })
     .notNull()
-    .default("open"),
-  createdAt: integer("created_at", { mode: "timestamp" })
-    .notNull()
-    .default(sql`(unixepoch())`),
+    .default("nenhuma"),
+  latitude: real("latitude"),
+  longitude: real("longitude"),
+  payloadBruto: text("payload_bruto").notNull(),
+  recebidoEm: text("recebido_em").notNull(),
+  ...timestamps,
 });
 
-export type Report = typeof reports.$inferSelect;
-export type NewReport = typeof reports.$inferInsert;
+export const tarefasAnalise = sqliteTable(
+  "tarefas_analise",
+  {
+    id: integer("id").primaryKey({ autoIncrement: true }),
+    mensagemId: integer("mensagem_id")
+      .notNull()
+      .references(() => mensagensWhatsapp.id),
+    endpoint: text("endpoint").notNull(),
+    status: text("status", { enum: ["pendente", "enviando", "concluida", "falhou"] })
+      .notNull()
+      .default("pendente"),
+    payloadEnvio: text("payload_envio"),
+    statusResposta: integer("status_resposta"),
+    tentativas: integer("tentativas").notNull().default(0),
+    maxTentativas: integer("max_tentativas").notNull().default(5),
+    proximaTentativaEm: text("proxima_tentativa_em").notNull().default(sql`CURRENT_TIMESTAMP`),
+    travadoEm: text("travado_em"),
+    concluidoEm: text("concluido_em"),
+    ultimoErro: text("ultimo_erro"),
+    ...timestamps,
+  },
+  (tabela) => [
+    uniqueIndex("tarefas_analise_mensagem_endpoint_unico").on(tabela.mensagemId, tabela.endpoint),
+    index("tarefas_analise_fila_idx").on(tabela.status, tabela.proximaTentativaEm),
+  ],
+);
+
+export type MensagemWhatsapp = typeof mensagensWhatsapp.$inferSelect;
+export type NovaMensagemWhatsapp = typeof mensagensWhatsapp.$inferInsert;
+export type TarefaAnalise = typeof tarefasAnalise.$inferSelect;
 
 // Ocorrências recebidas do ezworker (via webhook). O caso completo fica em `dados` (JSON);
 // as colunas soltas servem para ordenar e filtrar sem abrir o JSON.
