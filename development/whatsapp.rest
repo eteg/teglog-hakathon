@@ -1,0 +1,108 @@
+@baseUrl = http://localhost:3000
+@phone = 5519999990000
+@internalSecret = changeme
+
+### 1. Sobe a foto no R2 (rota que já existe) e guarda a key
+# @name uploadFoto
+POST {{baseUrl}}/api/files
+Content-Type: multipart/form-data; boundary=Limite
+
+--Limite
+Content-Disposition: form-data; name="file"; filename="foto.jpg"
+Content-Type: image/jpeg
+
+< ./fixtures/foto.jpg
+--Limite--
+
+### 2. WhatsApp: foto com legenda (usa a key da requisição 1 como media_id)
+POST {{baseUrl}}/api/webhooks/whatsapp
+Content-Type: application/json
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [{ "id": "mock-waba", "changes": [{ "field": "messages", "value": {
+    "messaging_product": "whatsapp",
+    "metadata": { "display_phone_number": "5519000000000", "phone_number_id": "mock-phone" },
+    "contacts": [{ "profile": { "name": "Entregador Teste" }, "wa_id": "{{phone}}" }],
+    "messages": [{
+      "from": "{{phone}}",
+      "id": "wamid.mock-{{$guid}}",
+      "timestamp": "{{$timestamp}}",
+      "type": "image",
+      "image": { "id": "{{uploadFoto.response.body.key}}", "mime_type": "image/jpeg", "caption": "caixa amassada" }
+    }]
+  }}]}]
+}
+
+### 3. WhatsApp: texto com id fixo (rode duas vezes para testar a idempotência)
+POST {{baseUrl}}/api/webhooks/whatsapp
+Content-Type: application/json
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [{ "id": "mock-waba", "changes": [{ "field": "messages", "value": {
+    "messaging_product": "whatsapp",
+    "metadata": { "display_phone_number": "5519000000000", "phone_number_id": "mock-phone" },
+    "messages": [{
+      "from": "{{phone}}",
+      "id": "wamid.mock-texto-fixo",
+      "timestamp": "{{$timestamp}}",
+      "type": "text",
+      "text": { "body": "cliente recusou, pedido 48213" }
+    }]
+  }}]}]
+}
+
+### 4. WhatsApp: localização
+POST {{baseUrl}}/api/webhooks/whatsapp
+Content-Type: application/json
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [{ "id": "mock-waba", "changes": [{ "field": "messages", "value": {
+    "messaging_product": "whatsapp",
+    "metadata": { "display_phone_number": "5519000000000", "phone_number_id": "mock-phone" },
+    "messages": [{
+      "from": "{{phone}}",
+      "id": "wamid.mock-{{$guid}}",
+      "timestamp": "{{$timestamp}}",
+      "type": "location",
+      "location": { "latitude": -22.9056, "longitude": -47.0608 }
+    }]
+  }}]}]
+}
+
+### 5. Rodar a fila (o cron não roda no next dev)
+POST {{baseUrl}}/api/internal/queue/tick
+x-internal-secret: {{internalSecret}}
+
+### 6. Sobe o áudio no R2 e guarda a key
+# @name uploadAudio
+POST {{baseUrl}}/api/files
+Content-Type: multipart/form-data; boundary=Limite
+
+--Limite
+Content-Disposition: form-data; name="file"; filename="audio.ogg"
+Content-Type: audio/ogg
+
+< ./fixtures/audio.ogg
+--Limite--
+
+### 7. WhatsApp: áudio (usa a key da requisição 6 como media_id)
+POST {{baseUrl}}/api/webhooks/whatsapp
+Content-Type: application/json
+
+{
+  "object": "whatsapp_business_account",
+  "entry": [{ "id": "mock-waba", "changes": [{ "field": "messages", "value": {
+    "messaging_product": "whatsapp",
+    "metadata": { "display_phone_number": "5519000000000", "phone_number_id": "mock-phone" },
+    "messages": [{
+      "from": "{{phone}}",
+      "id": "wamid.mock-{{$guid}}",
+      "timestamp": "{{$timestamp}}",
+      "type": "audio",
+      "audio": { "id": "{{uploadAudio.response.body.key}}", "mime_type": "audio/ogg; codecs=opus" }
+    }]
+  }}]}]
+}
