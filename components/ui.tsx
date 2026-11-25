@@ -27,20 +27,47 @@ const TONS: Record<Tom, { container: string; dot: string; text: string }> = {
   violet: { container: 'bg-[#DDD6FE] border-[#DDD6FE]', dot: 'bg-[#4C1D95]', text: 'text-[#4C1D95]' },
 }
 
-export function Badge({ tom = 'slate', children }: { tom?: Tom; children: ReactNode }) {
+/**
+ * Badge no padrão do mca-refactor (ProjectStatusBadge/StatusBadge): nunca passa da largura do pai
+ * (max-w-full + overflow-hidden) e o texto corta com "…" em vez de quebrar; o texto completo fica
+ * no `title`. Para caber sem corte, dê largura à coluna (ex.: `width` da TableColumn).
+ */
+export function Badge({ tom = 'slate', title, children }: { tom?: Tom; title?: string; children: ReactNode }) {
   const t = TONS[tom]
+  const dica = title ?? (typeof children === 'string' ? children : undefined)
   return (
     <span
+      title={dica}
       className={cn(
-        'inline-flex max-w-full items-center justify-start gap-1 overflow-hidden rounded-[6px] border px-2 pt-0.5 pb-1',
+        'inline-flex max-w-full min-w-0 items-center justify-start gap-1 overflow-hidden rounded-[6px] border px-2 pt-0.5 pb-1 align-middle',
         t.container,
       )}
     >
       <span className={cn('block h-1.25 w-1.25 shrink-0 rounded-full', t.dot)} />
-      <span className={cn('font-sans text-xs leading-4 font-semibold tracking-normal whitespace-nowrap', t.text)}>
-        {children}
-      </span>
+      <span className={cn('min-w-0 truncate font-sans text-xs leading-4 font-semibold tracking-normal', t.text)}>{children}</span>
     </span>
+  )
+}
+
+/** Grade de StatBox: quantas colunas couberem com no mínimo 10rem cada; senão, uma por linha. */
+export function StatGrid({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3', className)}>{children}</div>
+}
+
+/** Caixa de número (rótulo + valor) padronizada: rótulo em uma linha com "…" e valor sem quebrar. */
+export function StatBox({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+  return (
+    <div className="bg-muted/50 flex min-w-0 flex-col gap-0.5 rounded-md p-3">
+      <span className="text-muted-foreground truncate text-xs font-bold tracking-wider" title={label}>
+        {label}
+      </span>
+      <span className="truncate text-lg leading-7 font-bold tabular-nums">{value}</span>
+      {hint && (
+        <span className="text-muted-foreground truncate text-xs" title={hint}>
+          {hint}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -121,9 +148,9 @@ const TOM_STATUS: Record<StatusExibicao, Tom> = {
 export function BadgeStatus({ caso }: { caso: Caso }) {
   const s = statusExibicao(caso)
   return (
-    <span className="inline-flex" title={DESCRICAO_STATUS_EXIBICAO[s]}>
-      <Badge tom={TOM_STATUS[s]}>{ROTULO_STATUS_EXIBICAO[s]}</Badge>
-    </span>
+    <Badge tom={TOM_STATUS[s]} title={`${ROTULO_STATUS_EXIBICAO[s]}: ${DESCRICAO_STATUS_EXIBICAO[s]}`}>
+      {ROTULO_STATUS_EXIBICAO[s]}
+    </Badge>
   )
 }
 

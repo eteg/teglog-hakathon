@@ -96,7 +96,7 @@ Após mudar bindings/vars no `wrangler.jsonc`, rode `npm run cf-typegen` para at
 
 ---
 
-# Portal de ocorrências (Recupera)
+# Portal de ocorrências (teglog)
 
 Portal onde o **cliente da transportadora** acompanha as ocorrências da carga dele.
 
