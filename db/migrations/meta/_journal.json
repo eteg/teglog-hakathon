@@ -22,6 +22,13 @@
       "when": 1795628437298,
       "tag": "0002_outgoing_la_nuit",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1795632339258,
+      "tag": "0003_outstanding_bushwacker",
+      "breakpoints": true
     }
   ]
 }
