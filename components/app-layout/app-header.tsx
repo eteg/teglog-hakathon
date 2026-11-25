@@ -13,6 +13,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { PRODUTO } from '@/lib/produto'
 import { NAVIGATION } from './navigation'
 
 export function AppHeader() {
@@ -24,7 +25,7 @@ export function AppHeader() {
       >
         <Link href="/" className="text-foreground flex shrink-0 items-center gap-2 font-semibold sm:gap-3">
           <Truck className="size-5" />
-          Recupera
+          {PRODUTO.nome}
         </Link>
         <div className="desktop:gap-4 flex min-w-0 items-center justify-end gap-3">
           <MobileNavigationMenu />

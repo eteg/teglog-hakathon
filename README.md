@@ -96,7 +96,7 @@ Após mudar bindings/vars no `wrangler.jsonc`, rode `npm run cf-typegen` para at
 
 ---
 
-# Portal de ocorrências (Recupera)
+# Portal de ocorrências (teglog)
 
 Portal onde o **cliente da transportadora** acompanha as ocorrências da carga dele.
 
@@ -185,6 +185,24 @@ Pela tela do caso, o cliente anexa evidências: `POST /api/ocorrencias/<id>/evid
 | Pergunta do gestor | `POST /api/perguntas { pergunta }` |
 | Padrões emergentes / dar nome | `GET /api/padroes`, `PUT /api/padroes/<chave> { nome }` |
 | Indicadores por dimensão (F1) | pendente: aguarda a integração do back |
+
+### Mock do ezworker (até a integração real)
+
+O botão **Simular ezworker** (tela de ocorrências) e as rotas abaixo devolvem o JSON que o
+ezworker mandaria e o entregam no mesmo fluxo do webhook (schema → regras → D1/R2).
+Catálogo de cenários em [lib/mock-ezworker.ts](lib/mock-ezworker.ts).
+
+| Rota | O que faz |
+|---|---|
+| `GET /api/mock/ezworker` | Lista os cenários com um exemplo do JSON de cada (bom para conferir o contrato) |
+| `POST /api/mock/ezworker/<audio\|image\|video\|text>` | Multipart: `arquivo` (opcional, vai para o R2), `texto`, `cenario` (id), `entregar=false` para só ver o JSON |
+| `POST /api/simular` | Sorteia um cenário e entrega |
+
+```bash
+curl -F "arquivo=@audio.ogg;type=audio/ogg" -F cenario=acidente-rota http://localhost:3000/api/mock/ezworker/audio
+```
+
+Quando o ezworker real existir, ele chama `POST /api/webhook/ezworker` e o mock pode ser removido.
 
 ## Onde está cada coisa
 

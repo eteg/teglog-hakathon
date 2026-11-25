@@ -22,17 +22,17 @@ import type { UseRowActionsOutput } from '@/components/row-actions'
 import type { Sorting, TableColumn } from '@/components/table/table'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
-import { LIMIAR_CONFIANCA, ROTULO_SITUACAO, ROTULO_TIPO, brl } from '@/lib/regras'
+import { LIMIAR_CONFIANCA, ORDEM_STATUS, ROTULO_STATUS_EXIBICAO, ROTULO_TIPO, brl, rotuloSubtipo } from '@/lib/regras'
 import type { Caso, PaginaCasos } from '@/lib/types'
 import { cn } from '@/lib/utils'
-import { BadgePagador, BadgeSituacao, BadgeStatus, BadgeTipo, Canal, Kpi, Prazo } from './ui'
+import { BadgePagador, BadgeStatus, BadgeTipo, Canal, Kpi, Prazo } from './ui'
 
 const INTERVALO_MS = 5000
 /** Disparado por quem sabe que chegou caso novo (ex.: botão de demo). */
 export const EVENTO_ATUALIZAR = 'ocorrencias:atualizar'
 
-type Filtros = { q: string; tipo: string; situacao: string; transportadora: string; motorista: string }
-const SEM_FILTROS: Filtros = { q: '', tipo: '', situacao: '', transportadora: '', motorista: '' }
+type Filtros = { q: string; tipo: string; status: string; transportadora: string; motorista: string }
+const SEM_FILTROS: Filtros = { q: '', tipo: '', status: '', transportadora: '', motorista: '' }
 
 /** Ocorrências da carga (F2): busca paginada no D1, com filtros, e consulta de novo a cada 5 s. */
 export function FilaAoVivo() {
@@ -127,7 +127,7 @@ export function FilaAoVivo() {
     {
       id: 'id',
       title: 'Caso',
-      width: 124,
+      width: 120,
       sortable: true,
       render: (c) => (
         <span className="flex items-center gap-2">
@@ -136,14 +136,15 @@ export function FilaAoVivo() {
         </span>
       ),
     },
-    { id: 'tipo', title: 'Tipo', width: 112, sortable: true, render: (c) => <BadgeTipo tipo={c.tipo} /> },
+    { id: 'tipo', title: 'Tipo', width: 116, sortable: true, render: (c) => <BadgeTipo tipo={c.tipo} /> },
     {
       id: 'resumo',
       title: 'Resumo',
+      minWidth: 140,
       render: (c) => (
         <div className="flex min-w-0 flex-col">
           <span className="truncate" title={c.resumo}>
-            {c.resumo ?? c.subtipo}
+            {c.resumo ?? rotuloSubtipo(c.subtipo)}
           </span>
           <span className="text-muted-foreground truncate text-xs">
             {[c.transportadora, c.contexto?.rota].filter(Boolean).join(' · ')}
@@ -151,35 +152,29 @@ export function FilaAoVivo() {
         </div>
       ),
     },
-    { id: 'motorista', title: 'Motorista', width: 148, sortable: true, render: (c) => c.contexto?.motorista ?? '—' },
+    { id: 'motorista', title: 'Motorista', width: 124, sortable: true, render: (c) => c.contexto?.motorista ?? '—' },
     {
       id: 'valor',
       title: 'Custo',
-      width: 128,
+      width: 124,
       align: 'right',
       sortable: true,
       render: (c) => <span className="tabular-nums">{c.contexto?.valor_nf ? brl(c.contexto.valor_nf) : '—'}</span>,
     },
-    { id: 'responsavel', title: 'Responsável', width: 148, render: (c) => <BadgePagador pagador={c.decisao.pagador} /> },
-    { id: 'prazo', title: 'Prazo', width: 100, sortable: true, render: (c) => <Prazo iso={c.contexto?.prazo_protesto} /> },
+    { id: 'responsavel', title: 'Responsável', width: 168, render: (c) => <BadgePagador pagador={c.decisao.pagador} /> },
+    { id: 'prazo', title: 'Prazo', width: 112, sortable: true, render: (c) => <Prazo iso={c.contexto?.prazo_protesto} /> },
     {
       id: 'status',
       title: 'Status',
-      width: 176,
+      width: 160,
       sortable: true,
-      render: (c) => (
-        <div className="flex flex-col items-start gap-1 py-1">
-          <BadgeStatus status={c.status} />
-          <BadgeSituacao caso={c} />
-        </div>
-      ),
+      render: (c) => <BadgeStatus caso={c} />,
     },
   ]
 
   const cardFields: CardField<Caso>[] = [
     { id: 'id', title: 'Caso', sortable: true, hidden: true, dataIndex: 'id' },
     { id: 'tipo', title: 'Tipo', sortable: true, render: (c) => <BadgeTipo tipo={c.tipo} /> },
-    { id: 'situacao', title: 'Registro', render: (c) => <BadgeSituacao caso={c} /> },
     { id: 'motorista', title: 'Motorista', sortable: true, render: (c) => c.contexto?.motorista ?? '—' },
     { id: 'valor', title: 'Custo', sortable: true, render: (c) => (c.contexto?.valor_nf ? brl(c.contexto.valor_nf) : '—') },
     { id: 'responsavel', title: 'Responsável', render: (c) => <BadgePagador pagador={c.decisao.pagador} /> },
@@ -255,10 +250,10 @@ export function FilaAoVivo() {
         <div className="flex flex-wrap items-center gap-2">
           <FiltroSelect rotulo="Tipo" valor={filtros.tipo} opcoes={opcoes(facetas?.tipos, ROTULO_TIPO)} onChange={(v) => filtrar('tipo', v)} />
           <FiltroSelect
-            rotulo="Registro"
-            valor={filtros.situacao}
-            opcoes={Object.entries(ROTULO_SITUACAO).map(([value, label]) => ({ value, label }))}
-            onChange={(v) => filtrar('situacao', v)}
+            rotulo="Status"
+            valor={filtros.status}
+            opcoes={ORDEM_STATUS.map((value) => ({ value, label: ROTULO_STATUS_EXIBICAO[value] }))}
+            onChange={(v) => filtrar('status', v)}
           />
           <FiltroSelect
             rotulo="Transportadora"
@@ -306,9 +301,9 @@ export function FilaAoVivo() {
             <div className="flex min-w-0 flex-col gap-2">
               <div className="flex min-w-0 flex-wrap items-center gap-2">
                 <p className="text-foreground truncate font-mono text-base font-semibold">{c.id}</p>
-                <BadgeStatus status={c.status} />
+                <BadgeStatus caso={c} />
               </div>
-              <p className="text-muted-foreground line-clamp-2 text-sm">{c.resumo ?? c.subtipo}</p>
+              <p className="text-muted-foreground line-clamp-2 text-sm">{c.resumo ?? rotuloSubtipo(c.subtipo)}</p>
             </div>
           ),
         }}

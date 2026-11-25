@@ -4,7 +4,9 @@
 import 'server-only'
 
 import { getD1 } from '@/lib/db'
+import { ROTULO_TIPO } from './regras'
 import { listar } from './store'
+import type { TipoOcorrencia } from './types'
 
 export type Metrica = 'custo' | 'seguro' | 'quantidade'
 export type Dimensao = 'rota' | 'transportadora' | 'motorista' | 'produto' | 'tipo' | 'cliente'
@@ -18,6 +20,8 @@ export interface RespostaPergunta {
   /** SQL executado no D1 (parâmetros já substituídos, só para exibição). */
   consulta: string
   linhas: { grupo?: string; valor: number; casos: number }[]
+  /** Dados do gráfico: o próprio agrupamento, ou o total detalhado por tipo de ocorrência. */
+  grafico: { titulo: string; dimensao: Dimensao; linhas: { grupo: string; valor: number; casos: number }[] }
 }
 
 const METRICA_SQL: Record<Metrica, string> = {
@@ -123,6 +127,26 @@ export async function responderPergunta(pergunta: string): Promise<RespostaPergu
     .all<{ grupo?: string; valor: number | null; casos: number }>()
   const linhas = results.map((r) => ({ grupo: r.grupo ?? undefined, valor: r.valor ?? 0, casos: r.casos }))
 
+  // Gráfico: perguntas sem agrupamento são detalhadas por tipo, com os mesmos filtros.
+  const dimGrafico: Dimensao = dimensao ?? 'tipo'
+  let linhasGrafico = linhas
+  if (!dimensao) {
+    const sqlGrafico = `SELECT ${DIMENSAO_SQL.tipo} AS grupo, ${agregado} AS valor, COUNT(*) AS casos FROM casos${whereSql} GROUP BY grupo ORDER BY valor DESC LIMIT 10`
+    const r = await d1
+      .prepare(sqlGrafico)
+      .bind(...params)
+      .all<{ grupo?: string; valor: number | null; casos: number }>()
+    linhasGrafico = r.results.map((x) => ({ grupo: x.grupo ?? undefined, valor: x.valor ?? 0, casos: x.casos }))
+  }
+  const grafico = {
+    titulo: `${metrica === 'seguro' ? 'Coberto pelo seguro' : metrica === 'quantidade' ? 'Ocorrências' : 'Custo'} por ${ROTULO_DIM[dimGrafico]}`,
+    dimensao: dimGrafico,
+    linhas: linhasGrafico.filter((l) => l.valor > 0).map((l) => ({
+      ...l,
+      grupo: dimGrafico === 'tipo' ? (ROTULO_TIPO[l.grupo as TipoOcorrencia] ?? l.grupo ?? 'não informado') : (l.grupo ?? 'não informado'),
+    })),
+  }
+
   let i = 0
   const consulta = sql.replace(/\?/g, () => `'${String(params[i++]).replace(/'/g, "''")}'`)
 
@@ -158,5 +182,6 @@ export async function responderPergunta(pergunta: string): Promise<RespostaPergu
     interpretacao: { metrica, dimensao, filtros, periodo },
     consulta,
     linhas,
+    grafico,
   }
 }

@@ -1,8 +1,18 @@
 import { FileText, Image as ImageIcon, Mic, Video, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-import { ROTULO_PAGADOR, ROTULO_SITUACAO, ROTULO_STATUS, ROTULO_TIPO, diasAte, situacaoRegistro } from '@/lib/regras'
-import type { Canal as TCanal, Gravidade, OcorrenciaEzworker, Pagador, SituacaoRegistro, StatusCaso, TipoOcorrencia } from '@/lib/types'
+import {
+  DESCRICAO_STATUS_EXIBICAO,
+  ROTULO_PAGADOR,
+  ROTULO_SITUACAO,
+  ROTULO_STATUS_EXIBICAO,
+  ROTULO_TIPO,
+  diasAte,
+  situacaoRegistro,
+  statusExibicao,
+  type StatusExibicao,
+} from '@/lib/regras'
+import type { Canal as TCanal, Caso, Gravidade, OcorrenciaEzworker, Pagador, TipoOcorrencia } from '@/lib/types'
 import { cn } from '@/lib/utils'
 
 // Badge no mesmo formato do StatusBadge do mca-refactor (pílula com bolinha).
@@ -17,20 +27,47 @@ const TONS: Record<Tom, { container: string; dot: string; text: string }> = {
   violet: { container: 'bg-[#DDD6FE] border-[#DDD6FE]', dot: 'bg-[#4C1D95]', text: 'text-[#4C1D95]' },
 }
 
-export function Badge({ tom = 'slate', children }: { tom?: Tom; children: ReactNode }) {
+/**
+ * Badge no padrão do mca-refactor (ProjectStatusBadge/StatusBadge): nunca passa da largura do pai
+ * (max-w-full + overflow-hidden) e o texto corta com "…" em vez de quebrar; o texto completo fica
+ * no `title`. Para caber sem corte, dê largura à coluna (ex.: `width` da TableColumn).
+ */
+export function Badge({ tom = 'slate', title, children }: { tom?: Tom; title?: string; children: ReactNode }) {
   const t = TONS[tom]
+  const dica = title ?? (typeof children === 'string' ? children : undefined)
   return (
     <span
+      title={dica}
       className={cn(
-        'inline-flex max-w-full items-center justify-start gap-1 overflow-hidden rounded-[6px] border px-2 pt-0.5 pb-1',
+        'inline-flex max-w-full min-w-0 items-center justify-start gap-1 overflow-hidden rounded-[6px] border px-2 pt-0.5 pb-1 align-middle',
         t.container,
       )}
     >
       <span className={cn('block h-1.25 w-1.25 shrink-0 rounded-full', t.dot)} />
-      <span className={cn('font-sans text-xs leading-4 font-semibold tracking-normal whitespace-nowrap', t.text)}>
-        {children}
-      </span>
+      <span className={cn('min-w-0 truncate font-sans text-xs leading-4 font-semibold tracking-normal', t.text)}>{children}</span>
     </span>
+  )
+}
+
+/** Grade de StatBox: quantas colunas couberem com no mínimo 10rem cada; senão, uma por linha. */
+export function StatGrid({ children, className }: { children: ReactNode; className?: string }) {
+  return <div className={cn('grid grid-cols-[repeat(auto-fit,minmax(10rem,1fr))] gap-3', className)}>{children}</div>
+}
+
+/** Caixa de número (rótulo + valor) padronizada: rótulo em uma linha com "…" e valor sem quebrar. */
+export function StatBox({ label, value, hint }: { label: string; value: ReactNode; hint?: string }) {
+  return (
+    <div className="bg-muted/50 flex min-w-0 flex-col gap-0.5 rounded-md p-3">
+      <span className="text-muted-foreground truncate text-xs font-bold tracking-wider" title={label}>
+        {label}
+      </span>
+      <span className="truncate text-lg leading-7 font-bold tabular-nums">{value}</span>
+      {hint && (
+        <span className="text-muted-foreground truncate text-xs" title={hint}>
+          {hint}
+        </span>
+      )}
+    </div>
   )
 }
 
@@ -67,10 +104,13 @@ export function Kpi({ label, value, hint, icon: Icon }: { label: string; value: 
           <Icon className="text-primary size-5" />
         </div>
       )}
-      <div className="flex min-w-0 flex-col gap-1">
-        <span className="text-muted-foreground text-sm">{label}</span>
-        <span className="text-foreground text-xl font-bold break-words tabular-nums">{value}</span>
-        {hint && <span className="text-muted-foreground text-xs">{hint}</span>}
+      {/* Altura fixa por linha (rótulo: 2 linhas, valor: 1, nota: 1) para os cards ficarem alinhados entre si. */}
+      <div className="flex min-w-0 flex-1 flex-col gap-1">
+        <span className="text-muted-foreground line-clamp-2 min-h-10 text-sm leading-5" title={label}>
+          {label}
+        </span>
+        <span className="text-foreground truncate text-xl leading-7 font-bold tabular-nums">{value}</span>
+        <span className="text-muted-foreground min-h-4 truncate text-xs leading-4">{hint ?? ' '}</span>
       </div>
     </div>
   )
@@ -95,17 +135,24 @@ const TOM_TIPO: Record<TipoOcorrencia, Tom> = {
 }
 export const BadgeTipo = ({ tipo }: { tipo: TipoOcorrencia }) => <Badge tom={TOM_TIPO[tipo]}>{ROTULO_TIPO[tipo]}</Badge>
 
-const TOM_STATUS: Record<StatusCaso, Tom> = {
-  novo: 'blue',
-  aguardando_evidencia: 'amber',
-  aguardando_aprovacao: 'amber',
+const TOM_STATUS: Record<StatusExibicao, Tom> = {
+  em_revisao: 'red',
+  aguarda_voce: 'amber',
+  incompleto: 'amber',
+  em_tratativa: 'blue',
   aprovado: 'green',
-  devolutiva_enviada: 'green',
+  respondido: 'green',
   encerrado: 'slate',
 }
-export const BadgeStatus = ({ status }: { status: StatusCaso }) => (
-  <Badge tom={TOM_STATUS[status]}>{ROTULO_STATUS[status]}</Badge>
-)
+/** Status único da ocorrência (tratativa + situação do registro). */
+export function BadgeStatus({ caso }: { caso: Caso }) {
+  const s = statusExibicao(caso)
+  return (
+    <Badge tom={TOM_STATUS[s]} title={`${ROTULO_STATUS_EXIBICAO[s]}: ${DESCRICAO_STATUS_EXIBICAO[s]}`}>
+      {ROTULO_STATUS_EXIBICAO[s]}
+    </Badge>
+  )
+}
 
 const TOM_PAGADOR: Record<Pagador, Tom> = {
   seguradora: 'violet',
@@ -165,9 +212,7 @@ export function Confianca({ v }: { v: number }) {
   )
 }
 
-const TOM_SITUACAO: Record<SituacaoRegistro, Tom> = { completo: 'green', incompleto: 'amber', em_revisao: 'red' }
-/** Situação do registro (F3): completo, incompleto (falta evidência) ou em revisão (baixa confiança). */
-export function BadgeSituacao({ caso }: { caso: OcorrenciaEzworker }) {
-  const s = situacaoRegistro(caso)
-  return <Badge tom={TOM_SITUACAO[s]}>Registro {ROTULO_SITUACAO[s].toLowerCase()}</Badge>
+/** Situação do registro (F3) como informação, não como segundo status. */
+export function TextoSituacao({ caso }: { caso: OcorrenciaEzworker }) {
+  return <span className="text-muted-foreground text-sm">Registro {ROTULO_SITUACAO[situacaoRegistro(caso)].toLowerCase()}</span>
 }

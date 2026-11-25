@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { BASE, agregar, recomendar, totais } from '@/lib/padroes'
 import { brl } from '@/lib/regras'
 
+export const metadata = { title: 'Indicativo de perda' }
+
 const fmt = (n: number, d = 1) => n.toLocaleString('pt-BR', { maximumFractionDigits: d })
 
 export default function Painel() {

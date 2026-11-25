@@ -319,3 +319,84 @@ export function tipoParaPendencia(pendencia: string): string {
   if (p.includes("áudio") || p.includes("audio")) return "audio_relato";
   return "foto_avaria";
 }
+
+// ---------------------------------------------------------------------------
+// Status único exibido ao cliente: junta o andamento da tratativa e a situação do
+// registro em um só valor, pela prioridade do que pede ação primeiro.
+
+export type StatusExibicao =
+  | "encerrado"
+  | "em_revisao"
+  | "aguarda_voce"
+  | "incompleto"
+  | "respondido"
+  | "aprovado"
+  | "em_tratativa";
+
+export const ORDEM_STATUS: StatusExibicao[] = [
+  "em_revisao",
+  "aguarda_voce",
+  "incompleto",
+  "em_tratativa",
+  "aprovado",
+  "respondido",
+  "encerrado",
+];
+
+export const ROTULO_STATUS_EXIBICAO: Record<StatusExibicao, string> = {
+  encerrado: "Encerrado",
+  em_revisao: "Em revisão",
+  aguarda_voce: "Aguarda você",
+  incompleto: "Incompleto",
+  respondido: "Você respondeu",
+  aprovado: "Tratativa aprovada",
+  em_tratativa: "Em tratativa",
+};
+
+export const DESCRICAO_STATUS_EXIBICAO: Record<StatusExibicao, string> = {
+  encerrado: "Caso encerrado.",
+  em_revisao: "Há dados extraídos com baixa confiança aguardando revisão.",
+  aguarda_voce: "A tratativa precisa da sua aprovação.",
+  incompleto: "Faltam evidências para fechar o dossiê.",
+  respondido: "Você respondeu à transportadora.",
+  aprovado: "Tratativa aprovada; em andamento.",
+  em_tratativa: "Registro completo; a transportadora está tratando.",
+};
+
+export function statusExibicao(c: Caso): StatusExibicao {
+  if (c.status === "encerrado") return "encerrado";
+  if (camposEmRevisao(c).length) return "em_revisao";
+  // Precisa da aprovação do cliente enquanto não foi aprovada nem respondida.
+  if (c.status === "aguardando_aprovacao" || (c.decisao.requer_aprovacao && !["aprovado", "devolutiva_enviada"].includes(c.status)))
+    return "aguarda_voce";
+  if (c.faltando?.length) return "incompleto";
+  if (c.status === "devolutiva_enviada") return "respondido";
+  if (c.status === "aprovado") return "aprovado";
+  return "em_tratativa";
+}
+
+// ---------------------------------------------------------------------------
+// Subtipo legível: o ezworker manda códigos como "colisao_frontal"; a tela mostra "Colisão frontal".
+
+export const ROTULO_SUBTIPO: Record<string, string> = {
+  embalagem_violada: "Embalagem violada",
+  mau_acondicionamento: "Mau acondicionamento",
+  embalagem_impropria: "Embalagem imprópria",
+  carga_descarga: "Carga e descarga",
+  amassado_leve: "Amassado leve",
+  colisao_frontal: "Colisão frontal",
+  tombamento: "Tombamento",
+  pedido_divergente: "Pedido divergente",
+  destinatario_ausente: "Destinatário ausente",
+  volume_nao_localizado: "Volume não localizado",
+  bloqueio_rodovia: "Bloqueio na rodovia",
+  atraso_rota: "Atraso na rota",
+};
+
+/** Rótulo do subtipo; para códigos desconhecidos, troca "_" por espaço e capitaliza. */
+export function rotuloSubtipo(subtipo?: string): string {
+  if (!subtipo) return "";
+  if (ROTULO_SUBTIPO[subtipo]) return ROTULO_SUBTIPO[subtipo];
+  const texto = subtipo.replace(/[_-]+/g, " ").trim().toLowerCase();
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}

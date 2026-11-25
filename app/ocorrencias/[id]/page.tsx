@@ -21,7 +21,6 @@ import { PageContainer, PageHeader } from '@/components/page-header'
 import {
   BadgeGravidade,
   BadgePagador,
-  BadgeSituacao,
   BadgeStatus,
   BadgeTipo,
   Canal,
@@ -29,6 +28,9 @@ import {
   Field,
   Prazo,
   Section,
+  StatBox,
+  StatGrid,
+  TextoSituacao,
 } from '@/components/ui'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -90,8 +92,7 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
         <div className="flex flex-wrap items-center gap-2">
           <BadgeTipo tipo={c.tipo} />
           <BadgeGravidade g={c.gravidade} />
-          <BadgeStatus status={c.status} />
-          <BadgeSituacao caso={c} />
+          <BadgeStatus caso={c} />
           <Canal canal={c.canal} />
           <span className="text-muted-foreground text-sm">
             · Recebido em {new Date(c.recebido_em).toLocaleString('pt-BR')}
@@ -138,7 +139,7 @@ async function Detalhe({ params }: { params: Promise<{ id: string }> }) {
 
       <div className="desktop:grid-cols-[minmax(0,1fr)_360px] grid gap-6">
         <div className="flex min-w-0 flex-col gap-6">
-          <Section title="O que foi relatado">
+          <Section title="O que foi relatado" action={<TextoSituacao caso={c} />}>
             <div className="grid grid-cols-1 gap-x-4 gap-y-3 min-[481px]:grid-cols-2">
               <CampoConf label="NF" valor={c.nf} conf={c.confianca.nf} />
               <CampoConf label="Transportadora" valor={c.transportadora} conf={c.confianca.transportadora} />
@@ -272,16 +273,10 @@ function Tratativa({ c }: { c: Caso }) {
         <BadgePagador pagador={d.pagador} />
         <span className="text-muted-foreground text-sm">NF {c.contexto?.valor_nf ? brl(c.contexto.valor_nf) : '—'}</span>
       </div>
-      <div className="grid grid-cols-2 gap-3">
-        <div className="bg-muted/50 rounded-md p-3">
-          <span className="text-muted-foreground block text-xs font-bold tracking-wider">Custo da ocorrência</span>
-          <span className="text-lg font-bold tabular-nums">{brl(c.contexto?.custo_ocorrencia ?? custoOcorrencia(c))}</span>
-        </div>
-        <div className="bg-muted/50 rounded-md p-3">
-          <span className="text-muted-foreground block text-xs font-bold tracking-wider">Custo do seguro</span>
-          <span className="text-lg font-bold tabular-nums">{brl(c.contexto?.custo_seguro ?? custoSeguro(c, d))}</span>
-        </div>
-      </div>
+      <StatGrid>
+        <StatBox label="Custo da ocorrência" value={brl(c.contexto?.custo_ocorrencia ?? custoOcorrencia(c))} />
+        <StatBox label="Custo do seguro" value={brl(c.contexto?.custo_seguro ?? custoSeguro(c, d))} />
+      </StatGrid>
       <Field label="Playbook">
         <span className="block">{d.playbook}</span>
         <span className="text-muted-foreground mt-1 block font-normal">{d.motivo}</span>
