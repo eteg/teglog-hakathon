@@ -7,3 +7,11 @@ WHATSAPP_ACCESS_TOKEN=changeme
 COOLDOWN_SECONDS=5
 APP_URL=http://localhost:3000
 INTERNAL_SECRET=changeme
+# Acesso mínimo (critério 4): chave de leitura (assistente do gestor) e de analista (altera dados).
+# Gere com: openssl rand -hex 24
+READ_API_KEY=troque-por-uma-chave-de-leitura
+ANALYST_API_KEY=troque-por-uma-chave-de-analista
+# Login (JWT em cookie httpOnly, 8 h). Opcional: sem estas linhas vale o mock teglog / teglog.
+# JWT_SECRET=gere-com-openssl-rand-hex-32
+# AUTH_USUARIO=teglog
+# AUTH_SENHA=teglog

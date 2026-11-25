@@ -50,6 +50,17 @@ const ROTULO_DIM: Record<Dimensao, string> = {
 
 const TIPOS = ['avaria', 'recusa', 'reentrega', 'extravio', 'atraso', 'acidente']
 
+/**
+ * Acesso mínimo (critério 4): o assistente só executa uma consulta SELECT única. Mesmo que um
+ * trecho de SQL viesse errado, nada que altere dados chega ao D1 por este caminho.
+ */
+export function somenteLeitura(sql: string): string {
+  const limpo = sql.trim().replace(/;\s*$/, '')
+  if (!/^select\b/i.test(limpo) || limpo.includes(';') || /\b(insert|update|delete|drop|alter|create|replace|attach|pragma)\b/i.test(limpo))
+    throw new Error('consulta recusada: o assistente só pode ler (SELECT)')
+  return limpo
+}
+
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 const brl = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
@@ -122,7 +133,7 @@ export async function responderPergunta(pergunta: string): Promise<RespostaPergu
 
   const d1 = await getD1()
   const { results } = await d1
-    .prepare(sql)
+    .prepare(somenteLeitura(sql))
     .bind(...params)
     .all<{ grupo?: string; valor: number | null; casos: number }>()
   const linhas = results.map((r) => ({ grupo: r.grupo ?? undefined, valor: r.valor ?? 0, casos: r.casos }))
@@ -133,7 +144,7 @@ export async function responderPergunta(pergunta: string): Promise<RespostaPergu
   if (!dimensao) {
     const sqlGrafico = `SELECT ${DIMENSAO_SQL.tipo} AS grupo, ${agregado} AS valor, COUNT(*) AS casos FROM casos${whereSql} GROUP BY grupo ORDER BY valor DESC LIMIT 10`
     const r = await d1
-      .prepare(sqlGrafico)
+      .prepare(somenteLeitura(sqlGrafico))
       .bind(...params)
       .all<{ grupo?: string; valor: number | null; casos: number }>()
     linhasGrafico = r.results.map((x) => ({ grupo: x.grupo ?? undefined, valor: x.valor ?? 0, casos: x.casos }))

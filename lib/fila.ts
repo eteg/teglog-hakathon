@@ -6,6 +6,7 @@ import { mensagensWhatsapp, tarefasAnalise, type MensagemWhatsapp } from "@/db/s
 import { enviarParaAnalise, type TipoAnalise } from "@/lib/analise";
 import { getDb } from "@/lib/db";
 import { criarTarefa, guardarMidia } from "@/lib/ingestao";
+import { pseudonimoTelefone, semPII } from "@/lib/pii";
 
 const BASE_RETENTATIVA_SEGUNDOS = 30;
 
@@ -46,12 +47,15 @@ async function reservarTarefas(cooldownSegundos: number) {
 }
 
 async function enviarTarefa(tarefa: TarefaReservada, mensagem: MensagemWhatsapp) {
+  // Critério 6: nada de dado pessoal sai para a IA nem fica no registro da chamada (payloadEnvio).
+  // O texto vai com CPF/telefone/placa/e-mail trocados por marcadores; o telefone do remetente
+  // vira um pseudônimo estável. O original continua só em mensagens_whatsapp, como prova.
   const payload = {
     job_id: tarefa.id,
     message_id: mensagem.id,
-    from_phone: mensagem.telefone,
+    from_phone: await pseudonimoTelefone(mensagem.telefone),
     type: mensagem.tipo,
-    text: mensagem.texto,
+    text: semPII(mensagem.texto),
     storage_key: mensagem.chaveArmazenamento,
     content_type: mensagem.tipoConteudo,
     latitude: mensagem.latitude,

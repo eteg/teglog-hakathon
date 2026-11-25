@@ -1,7 +1,6 @@
 import type { Metadata } from 'next'
 import { Inter } from 'next/font/google'
 
-import { AppShell } from '@/components/app-layout/app-shell'
 import { PRODUTO } from '@/lib/produto'
 import './globals.css'
 
@@ -16,7 +15,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
     <html lang="pt-BR" className={`${inter.variable} h-full antialiased`}>
       <body className="h-full font-sans">
-        <AppShell>{children}</AppShell>
+        {children}
       </body>
     </html>
   )

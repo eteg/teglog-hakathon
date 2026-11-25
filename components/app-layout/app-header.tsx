@@ -1,9 +1,10 @@
 'use client'
 
-// Port de mca-refactor/shared/components/app-layout/app-header.tsx (sem auth/offline).
-import { Menu, Truck, XIcon } from 'lucide-react'
+// Port de mca-refactor/shared/components/app-layout/app-header.tsx (sem offline).
+import { CircleUser, LogOut, Menu, Truck, XIcon } from 'lucide-react'
 import Link from 'next/link'
-import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useState } from 'react'
 
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { Button } from '@/components/ui/button'
@@ -28,9 +29,54 @@ export function AppHeader() {
           {PRODUTO.nome}
         </Link>
         <div className="desktop:gap-4 flex min-w-0 items-center justify-end gap-3">
+          <Usuario />
           <MobileNavigationMenu />
         </div>
       </div>
+    </div>
+  )
+}
+
+/** Usuário logado (do JWT) e botão de sair. */
+function Usuario() {
+  const router = useRouter()
+  const [usuario, setUsuario] = useState<string | null>(null)
+
+  useEffect(() => {
+    let ativo = true
+    fetch('/api/auth/sessao', { cache: 'no-store' })
+      .then((r) => (r.ok ? (r.json() as Promise<{ usuario: string }>) : null))
+      .then((s) => ativo && setUsuario(s?.usuario ?? null))
+      .catch(() => undefined)
+    return () => {
+      ativo = false
+    }
+  }, [])
+
+  async function sair() {
+    await fetch('/api/auth/logout', { method: 'POST' })
+    router.replace('/login')
+    router.refresh()
+  }
+
+  return (
+    <div className="flex min-w-0 items-center gap-1">
+      {usuario && (
+        <span className="text-foreground hidden min-w-0 items-center gap-1.5 truncate text-sm sm:inline-flex" title={usuario}>
+          <CircleUser className="size-4 shrink-0" />
+          {usuario}
+        </span>
+      )}
+      <Button
+        variant="ghost"
+        size="sm"
+        className="text-foreground max-desktop:h-11 gap-1.5 hover:bg-white/20 hover:text-[var(--header-fg)]"
+        onClick={sair}
+        title="Sair"
+      >
+        <LogOut />
+        <span className="max-sm:sr-only">Sair</span>
+      </Button>
     </div>
   )
 }

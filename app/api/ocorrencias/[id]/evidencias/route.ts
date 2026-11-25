@@ -1,5 +1,6 @@
 // Anexa uma evidência ao caso: multipart { file, tipo, descricao?, resolve? }.
 // O arquivo vai para o R2 (com SHA-256) e entra no dossiê; `resolve` tira a pendência da lista.
+import { exigir } from "@/lib/acesso";
 import { MAX_BYTES } from "@/lib/evidencias";
 import { anexarEvidencia } from "@/lib/store";
 import type { TipoEvidencia } from "@/lib/types";
@@ -11,6 +12,8 @@ const TIPOS: TipoEvidencia[] = [
 const MIME_ACEITOS = /^(image\/(jpeg|png|webp|heic|gif)|audio\/|video\/|application\/pdf$)/;
 
 export async function POST(req: Request, ctx: RouteContext<"/api/ocorrencias/[id]/evidencias">) {
+  const negado = await exigir(req, "escrever");
+  if (negado) return negado;
   const { id } = await ctx.params;
   const form = await req.formData();
   const file = form.get("file");

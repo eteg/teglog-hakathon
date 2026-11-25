@@ -1,8 +1,12 @@
 // Lista de ocorrências com filtros e paginação (contrato F2).
 // GET /api/ocorrencias?q=&tipo=&status=&transportadora=&motorista=&rota=&situacao=&ordenar=&direcao=asc|desc&page=1&pageSize=10
+import { exigirLeitura } from "@/lib/acesso";
+import { casoSemPII } from "@/lib/pii-caso";
 import { listarPagina } from "@/lib/store";
 
 export async function GET(req: Request) {
+  const { negado, papel } = await exigirLeitura(req);
+  if (negado) return negado;
   const sp = new URL(req.url).searchParams;
   const texto = (k: string) => sp.get(k) || undefined;
   const numero = (k: string) => (sp.get(k) ? Number(sp.get(k)) : undefined);
@@ -19,5 +23,6 @@ export async function GET(req: Request) {
     page: numero("page"),
     pageSize: numero("pageSize"),
   });
-  return Response.json(pagina, { headers: { "cache-control": "no-store" } });
+  const corpo = papel === "leitura" ? { ...pagina, data: pagina.data.map(casoSemPII) } : pagina;
+  return Response.json(corpo, { headers: { "cache-control": "no-store" } });
 }

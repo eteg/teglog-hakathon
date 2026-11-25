@@ -1,10 +1,13 @@
 @baseUrl = http://localhost:3000
 @phone = 5519999990000
 @internalSecret = changeme
+# Mesma ANALYST_API_KEY do .dev.vars (POST /api/files exige a chave de analista)
+@analystKey = troque-por-uma-chave-de-analista
 
 ### 1. Sobe a foto no R2 (rota que já existe) e guarda a key
 # @name uploadFoto
 POST {{baseUrl}}/api/files
+x-api-key: {{analystKey}}
 Content-Type: multipart/form-data; boundary=Limite
 
 --Limite
@@ -79,6 +82,7 @@ x-internal-secret: {{internalSecret}}
 ### 6. Sobe o áudio no R2 e guarda a key
 # @name uploadAudio
 POST {{baseUrl}}/api/files
+x-api-key: {{analystKey}}
 Content-Type: multipart/form-data; boundary=Limite
 
 --Limite

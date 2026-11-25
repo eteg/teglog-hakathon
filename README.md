@@ -221,3 +221,48 @@ Segue o padrão do `mca-refactor` (shadcn new-york, base neutral, lucide):
 - `components/page-header.tsx`: `PageHeader` + `PageContainer`
 - `components/app-layout/*`: header verde + sidebar recolhível
 - Tokens de tema em `app/globals.css` (mesmos do `index.css` do mca-refactor)
+
+
+## Critérios de qualidade (tela `/qualidade`)
+
+### Login (JWT)
+Login simples em `/login`, **mockado: usuário `teglog`, senha `teglog`** (se `AUTH_USUARIO`, `AUTH_SENHA` e
+`JWT_SECRET` existirem no ambiente, têm prioridade). Gera um JWT HS256 guardado em cookie `httpOnly` por 8 h. O [middleware.ts](middleware.ts) manda quem
+não tem token válido para `/login`; as rotas da API aceitam o JWT do cookie ou a `x-api-key`.
+
+> Fica em `middleware.ts` (e não `proxy.ts`, o nome novo do Next 16) porque o proxy só roda em Node.js,
+> experimental no Cloudflare/OpenNext; o Next orienta manter `middleware` para o runtime Edge.
+
+Para sair do mock (recomendado antes de expor o Worker):
+
+```bash
+npx wrangler secret put JWT_SECRET     # openssl rand -hex 32
+npx wrangler secret put AUTH_USUARIO
+npx wrangler secret put AUTH_SENHA
+```
+
+### 4. Acesso mínimo
+A API exige login (cookie JWT) ou uma chave no header `x-api-key`:
+
+| Chave | Pode | Quem usa |
+|---|---|---|
+| `READ_API_KEY` | só consultar (GET e a pergunta do gestor) | assistente do gestor, integrações de leitura |
+| `ANALYST_API_KEY` | consultar e alterar (aprovar, corrigir, responder, anexar, enviar arquivo) | analista, scripts internos |
+
+Com a chave de leitura, toda rota que altera dados responde **403**; sem chave, **401**. CPF, telefone e
+placa saem mascarados nas respostas para a chave de leitura. Matriz em [lib/permissoes.ts](lib/permissoes.ts).
+
+```bash
+openssl rand -hex 24   # gere as duas chaves
+# local: .dev.vars (veja .dev.vars.example) · Worker: npx wrangler secret put READ_API_KEY / ANALYST_API_KEY
+curl -H "x-api-key: $READ_API_KEY" http://localhost:3000/api/ocorrencias
+```
+
+### 6. Dados pessoais
+CPF (com dígito verificador), telefone, placa e e-mail viram marcadores (`[CPF_1]`) antes de sair para o ezworker
+([lib/fila.ts](lib/fila.ts)) e nos logs. O telefone do remetente vai como pseudônimo estável (`tel_…`).
+CNPJ, NF e CEP não são escondidos. Código em [lib/pii.ts](lib/pii.ts).
+
+### Testes
+`npm test` (também roda no CI): formatos de dados pessoais, amostra de 50 relatos, matriz de acesso e
+uma varredura que falha se alguma rota nova da API não verificar o acesso.

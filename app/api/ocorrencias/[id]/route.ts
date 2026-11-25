@@ -1,15 +1,22 @@
+import { exigir, exigirLeitura } from "@/lib/acesso";
+import { casoSemPII } from "@/lib/pii-caso";
 import { CAMPOS_REVISAVEIS } from "@/lib/regras";
 import { atualizarStatus, obter, revisarCampo } from "@/lib/store";
 import type { CampoRevisavel } from "@/lib/types";
 
-export async function GET(_req: Request, ctx: RouteContext<"/api/ocorrencias/[id]">) {
+export async function GET(req: Request, ctx: RouteContext<"/api/ocorrencias/[id]">) {
+  const { negado, papel } = await exigirLeitura(req);
+  if (negado) return negado;
   const { id } = await ctx.params;
   const c = await obter(id);
-  return c ? Response.json(c) : Response.json({ erro: "não encontrado" }, { status: 404 });
+  if (!c) return Response.json({ erro: "não encontrado" }, { status: 404 });
+  return Response.json(papel === "leitura" ? casoSemPII(c) : c);
 }
 
 /** Ações humanas: aprovar, responder, encerrar e revisar campo (confirmar/corrigir). */
 export async function POST(req: Request, ctx: RouteContext<"/api/ocorrencias/[id]">) {
+  const negado = await exigir(req, "escrever");
+  if (negado) return negado;
   const { id } = await ctx.params;
   const { acao, mensagem, campo, valor } = (await req.json()) as {
     acao: string;
