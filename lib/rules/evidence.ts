@@ -15,6 +15,7 @@ const REQUIRED: Record<Extraction["type"], Requirement[]> = {
   accident: [{ anyOf: ["damage_photo", "location"], label: "foto do local ou da carga" }],
   refusal: [],
   redelivery: [],
+  delay: [],
 };
 
 /** Evidence still missing, as labels for the message to the driver. */

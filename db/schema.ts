@@ -82,7 +82,8 @@ export const padroes = sqliteTable("padroes", {
 
 const now = sql`(strftime('%Y-%m-%dT%H:%M:%fZ','now'))`;
 
-export const INCIDENT_TYPES = ["damage", "loss", "refusal", "redelivery", "discrepancy", "accident"] as const;
+export const INCIDENT_TYPES = ["damage", "loss", "refusal", "redelivery", "discrepancy", "accident", "delay"] as const;
+export const INCIDENT_SOURCES = ["ezworker", "claude", "seed"] as const;
 export const INCIDENT_STATUSES = [
   "awaiting_transcription",
   "awaiting_evidence",
@@ -189,7 +190,14 @@ export const incidents = sqliteTable("incidents", {
   /** Human-readable number, e.g. OC-2026-000123. */
   number: text("number").notNull().unique(),
   reportId: text("report_id").references(() => driverReports.id),
+  /** LangGraph thread that produced this incident (resumed on review and evidence). */
+  threadId: text("thread_id").unique(),
+  source: text("source", { enum: INCIDENT_SOURCES }).notNull().default("seed"),
   deliveryId: integer("delivery_id").references(() => deliveries.id),
+  // Normalized keys (B6), also set when the invoice is not in the delivery base.
+  routeId: integer("route_id").references(() => routes.id),
+  carrierId: integer("carrier_id").references(() => carriers.id),
+  driverId: integer("driver_id").references(() => drivers.id),
   type: text("type", { enum: INCIDENT_TYPES }).notNull(),
   reasonText: text("reason_text"),
   cost: real("cost"),
@@ -203,6 +211,7 @@ export const incidents = sqliteTable("incidents", {
   createdAt: text("created_at").notNull().default(now),
 }, (t) => [
   index("incidents_listing").on(t.occurredAt, t.type, t.status),
+  index("incidents_dimensions").on(t.routeId, t.carrierId, t.driverId),
   check("incidents_type_check", inList("type", INCIDENT_TYPES)),
   check("incidents_status_check", inList("status", INCIDENT_STATUSES)),
   check("incidents_payer_check", sql`payer is null or ${inList("payer", PAYERS)}`),

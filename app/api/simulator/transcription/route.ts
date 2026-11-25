@@ -1,4 +1,5 @@
 // Demo and tests: fake transcription in the same format as the webhook, without the external tool.
+import { resumeIncident } from "@/lib/graph/run";
 import { TranscriptionPayload, receiveTranscription } from "@/lib/reports/transcription";
 
 export async function POST(request: Request) {
@@ -8,5 +9,6 @@ export async function POST(request: Request) {
   }
   const result = await receiveTranscription(parsed.data);
   if (!result.found) return Response.json({ error: "mensagem de áudio não encontrada" }, { status: 404 });
-  return Response.json(result);
+  const resumed = result.allAudioDone ? await resumeIncident(result.reportId, "await_transcriptions", { timedOut: false }) : null;
+  return Response.json({ ...result, resumed: resumed !== null });
 }

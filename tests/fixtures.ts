@@ -35,6 +35,7 @@ export function extraction(overrides: Partial<Extraction> = {}): Extraction {
 export function delivery(overrides: Partial<EnrichedDelivery> = {}): EnrichedDelivery {
   return {
     deliveryId: 1,
+    source: "delivery_base",
     invoiceNumber: "123456",
     invoiceValue: 20_000,
     volumes: 10,

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
     // Closing the report starts the incident graph (synchronous in the simulator; see plan, risk 2).
     await closeReport(result.reportId);
     const run = await runIncidentGraph(result.reportId);
-    return Response.json({ ...result, graph: { status: run.result.status, incidentId: run.result.incidentId, paused: run.paused, next: run.next } }, { status: 201 });
+    return Response.json({ ...result, graph: { status: run.state.status, incidentId: run.state.incidentId, paused: run.paused, next: run.next } }, { status: 201 });
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 400 });
   }

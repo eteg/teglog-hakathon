@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "071a165c-8924-4ffa-a0f3-524d36237265",
+  "id": "1bce9fbd-5010-4e06-8006-f57e48015940",
   "prevId": "d7989cc3-4df8-4c9a-bbb3-c7f4c5d004dd",
   "tables": {
     "carriers": {
@@ -864,8 +864,44 @@
           "notNull": false,
           "autoincrement": false
         },
+        "thread_id": {
+          "name": "thread_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "source": {
+          "name": "source",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false,
+          "default": "'seed'"
+        },
         "delivery_id": {
           "name": "delivery_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "route_id": {
+          "name": "route_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "carrier_id": {
+          "name": "carrier_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": false,
+          "autoincrement": false
+        },
+        "driver_id": {
+          "name": "driver_id",
           "type": "integer",
           "primaryKey": false,
           "notNull": false,
@@ -959,12 +995,28 @@
           ],
           "isUnique": true
         },
+        "incidents_thread_id_unique": {
+          "name": "incidents_thread_id_unique",
+          "columns": [
+            "thread_id"
+          ],
+          "isUnique": true
+        },
         "incidents_listing": {
           "name": "incidents_listing",
           "columns": [
             "occurred_at",
             "type",
             "status"
+          ],
+          "isUnique": false
+        },
+        "incidents_dimensions": {
+          "name": "incidents_dimensions",
+          "columns": [
+            "route_id",
+            "carrier_id",
+            "driver_id"
           ],
           "isUnique": false
         }
@@ -995,6 +1047,45 @@
           ],
           "onDelete": "no action",
           "onUpdate": "no action"
+        },
+        "incidents_route_id_routes_id_fk": {
+          "name": "incidents_route_id_routes_id_fk",
+          "tableFrom": "incidents",
+          "tableTo": "routes",
+          "columnsFrom": [
+            "route_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "incidents_carrier_id_carriers_id_fk": {
+          "name": "incidents_carrier_id_carriers_id_fk",
+          "tableFrom": "incidents",
+          "tableTo": "carriers",
+          "columnsFrom": [
+            "carrier_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
+        },
+        "incidents_driver_id_drivers_id_fk": {
+          "name": "incidents_driver_id_drivers_id_fk",
+          "tableFrom": "incidents",
+          "tableTo": "drivers",
+          "columnsFrom": [
+            "driver_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "no action",
+          "onUpdate": "no action"
         }
       },
       "compositePrimaryKeys": {},
@@ -1002,7 +1093,7 @@
       "checkConstraints": {
         "incidents_type_check": {
           "name": "incidents_type_check",
-          "value": "type in ('damage', 'loss', 'refusal', 'redelivery', 'discrepancy', 'accident')"
+          "value": "type in ('damage', 'loss', 'refusal', 'redelivery', 'discrepancy', 'accident', 'delay')"
         },
         "incidents_status_check": {
           "name": "incidents_status_check",

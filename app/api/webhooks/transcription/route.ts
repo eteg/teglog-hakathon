@@ -1,6 +1,7 @@
 // B4: the external tool posts the transcription of an audio message here.
 import { getCloudflareContext } from "@opennextjs/cloudflare";
 
+import { resumeIncident } from "@/lib/graph/run";
 import { TranscriptionPayload, receiveTranscription } from "@/lib/reports/transcription";
 
 export async function POST(request: Request) {
@@ -17,6 +18,6 @@ export async function POST(request: Request) {
 
   const result = await receiveTranscription(parsed.data);
   if (!result.found) return Response.json({ error: "mensagem de áudio não encontrada" }, { status: 404 });
-  // T16: when allAudioDone and the report is waiting, the graph is resumed here.
-  return Response.json(result);
+  const resumed = result.allAudioDone ? await resumeIncident(result.reportId, "await_transcriptions", { timedOut: false }) : null;
+  return Response.json({ ...result, resumed: resumed !== null });
 }

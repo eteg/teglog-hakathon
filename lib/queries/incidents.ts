@@ -22,8 +22,8 @@ export async function listIncidents(f: IncidentFilters) {
   const where: SQL[] = [];
   if (f.status) where.push(eq(incidents.status, f.status));
   if (f.type) where.push(eq(incidents.type, f.type));
-  if (f.routeId) where.push(eq(deliveries.routeId, f.routeId));
-  if (f.carrierId) where.push(eq(deliveries.carrierId, f.carrierId));
+  if (f.routeId) where.push(eq(incidents.routeId, f.routeId));
+  if (f.carrierId) where.push(eq(incidents.carrierId, f.carrierId));
   if (f.since) where.push(gt(incidents.createdAt, f.since));
   if (f.cursor) where.push(lt(incidents.id, f.cursor));
 
@@ -42,14 +42,15 @@ export async function listIncidents(f: IncidentFilters) {
       confidence: incidents.confidence,
       occurredAt: incidents.occurredAt,
       createdAt: incidents.createdAt,
+      source: incidents.source,
       invoiceNumber: deliveries.invoiceNumber,
       route: routes.name,
       carrier: carriers.legalName,
     })
     .from(incidents)
     .leftJoin(deliveries, eq(deliveries.id, incidents.deliveryId))
-    .leftJoin(routes, eq(routes.id, deliveries.routeId))
-    .leftJoin(carriers, eq(carriers.id, deliveries.carrierId))
+    .leftJoin(routes, eq(routes.id, incidents.routeId))
+    .leftJoin(carriers, eq(carriers.id, incidents.carrierId))
     .where(where.length ? and(...where) : undefined)
     .orderBy(desc(incidents.id))
     .limit(limit + 1);

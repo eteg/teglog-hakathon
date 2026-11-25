@@ -21,7 +21,8 @@ export interface IncidentPorts {
   recordSchemaResult(callId: number | null, valid: boolean): Promise<void>;
   normalize(extraction: Extraction, phone: string): Promise<NormalizedEntities>;
   findDelivery(extraction: Extraction): Promise<EnrichedDelivery | null>;
-  saveIncident(state: IncidentStateType): Promise<number>;
+  /** Insert on the first call, update afterwards. Also mirrors the incident into `casos`. */
+  saveIncident(state: IncidentStateType): Promise<{ incidentId: number; caseId: string | null }>;
   saveDecisions(reportId: string, incidentId: number | null, decisions: Decision[]): Promise<void>;
   setReportStatus(reportId: string, status: "processing" | "waiting" | "done"): Promise<void>;
 }

@@ -3,6 +3,7 @@ import { Annotation } from "@langchain/langgraph";
 
 import type { INCIDENT_STATUSES, MESSAGE_KINDS, PAYERS } from "@/db/schema";
 import type { Extraction } from "@/lib/ai/extraction-schema";
+import type { OcorrenciaEzworker } from "@/lib/types";
 
 export type IncidentStatus = (typeof INCIDENT_STATUSES)[number];
 export type Payer = (typeof PAYERS)[number];
@@ -18,8 +19,8 @@ export type ReportMessage = {
   transcriptStatus: "pending" | "received" | "failed" | null;
 };
 
-/** Placeholder → original value, so masked data can be restored when saving (8.6). */
-export type PiiMap = Record<string, string>;
+export type { PiiMap } from "@/lib/pii";
+import type { PiiMap } from "@/lib/pii";
 
 export type NormalizedEntities = {
   carrierId: number | null;
@@ -28,7 +29,9 @@ export type NormalizedEntities = {
 };
 
 export type EnrichedDelivery = {
-  deliveryId: number;
+  /** Null when the invoice is not in the delivery base and the values came from the report context. */
+  deliveryId: number | null;
+  source: "delivery_base" | "report_context";
   invoiceNumber: string;
   invoiceValue: number;
   volumes: number;
@@ -63,15 +66,22 @@ export type Decision = {
   at: string;
 };
 
+/** Value sent to Command({ resume }) when the analyst acts on a paused incident. */
 export type ReviewAnswer =
   | { action: "confirm"; reviewer: string }
   | { action: "correct"; reviewer: string; fields: Partial<Extraction> };
+
+/** Value sent to Command({ resume }) when evidence arrives for an incident waiting for it. */
+export type EvidenceAnswer = { action: "evidence_received"; stillMissing: string[] };
 
 const replace = <T>(fallback: () => T) => Annotation<T>({ reducer: (_, next) => next, default: fallback });
 const append = <T>() => Annotation<T[]>({ reducer: (a, b) => a.concat(b), default: () => [] });
 
 export const IncidentState = Annotation.Root({
+  /** Thread id of the run; equals the driver report id when the graph starts from messages. */
   reportId: Annotation<string>(),
+  /** Occurrence delivered by ezworker; when present the graph skips its own extraction. */
+  source: replace<OcorrenciaEzworker | null>(() => null),
   phone: replace<string>(() => ""),
   /** When the report was opened (ISO); used for the claim deadline. */
   reportedAt: replace<string>(() => ""),
@@ -90,6 +100,12 @@ export const IncidentState = Annotation.Root({
   entities: replace<NormalizedEntities | null>(() => null),
   delivery: replace<EnrichedDelivery | null>(() => null),
   evidenceRequested: replace<boolean>(() => false),
+  missingEvidence: replace<string[]>(() => []),
+  reviewReasons: replace<string[]>(() => []),
+  /** Set once a human confirmed or corrected the incident. */
+  reviewed: replace<boolean>(() => false),
+  /** Id of the row in `casos` (first version of the app) mirrored from this incident. */
+  caseId: replace<string | null>(() => null),
   cost: replace<CostResult | null>(() => null),
   payer: replace<PayerDecision | null>(() => null),
   status: replace<IncidentStatus | null>(() => null),

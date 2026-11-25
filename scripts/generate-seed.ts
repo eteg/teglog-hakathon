@@ -260,6 +260,7 @@ for (let day = START; day <= END; day += DAY) {
     };
     const enriched: EnrichedDelivery = {
       deliveryId: id,
+      source: "delivery_base",
       invoiceNumber,
       invoiceValue,
       volumes,
@@ -292,7 +293,11 @@ for (let day = START; day <= END; day += DAY) {
     incidents.push({
       number: `OC-2026-${String(incidentSeq).padStart(6, "0")}`,
       report_id: null,
+      source: "seed",
       delivery_id: id,
+      route_id: route.id,
+      carrier_id: carrierId,
+      driver_id: driver.id,
       type,
       reason_text: reason(kind, product, affected, volumes),
       cost: cost.cost,

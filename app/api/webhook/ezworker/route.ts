@@ -1,6 +1,6 @@
 // Webhook chamado pelo ezworker com a ocorrência já processada
 // (mesmo formato para /audio, /image, /text).
-import { receber } from "@/lib/store";
+import { runIncidentFromEzworker } from "@/lib/graph/run";
 import { validarOcorrencia } from "@/lib/validar";
 
 export async function POST(req: Request) {
@@ -19,6 +19,10 @@ export async function POST(req: Request) {
   const v = validarOcorrencia(corpo);
   if (!v.ok) return Response.json({ erro: "schema inválido", detalhes: v.erros }, { status: 422 });
 
-  const caso = await receber(v.dado);
-  return Response.json({ id: caso.id, status: caso.status, pagador: caso.decisao.pagador }, { status: 201 });
+  // The decision graph validates, masks, costs, decides who pays and pauses for review when needed.
+  const run = await runIncidentFromEzworker(v.dado);
+  return Response.json(
+    { id: run.state.caseId, status: run.state.status, pagador: run.state.payer?.payer ?? null, pausado_em: run.next[0] ?? null },
+    { status: 201 },
+  );
 }

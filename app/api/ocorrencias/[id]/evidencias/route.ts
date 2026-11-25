@@ -1,6 +1,7 @@
 // Anexa uma evidência ao caso: multipart { file, tipo, descricao?, resolve? }.
 // O arquivo vai para o R2 (com SHA-256) e entra no dossiê; `resolve` tira a pendência da lista.
 import { MAX_BYTES } from "@/lib/evidencias";
+import { resumeEvidenceFromCase } from "@/lib/graph/case-review";
 import { anexarEvidencia } from "@/lib/store";
 import type { TipoEvidencia } from "@/lib/types";
 
@@ -29,5 +30,7 @@ export async function POST(req: Request, ctx: RouteContext<"/api/ocorrencias/[id
     { tipo, descricao, resolve },
   );
   if (!caso) return Response.json({ erro: "não encontrado" }, { status: 404 });
+  // Nothing missing any more: the decision graph waiting for evidence goes on.
+  if (caso.faltando.length === 0) await resumeEvidenceFromCase(id);
   return Response.json(caso, { status: 201 });
 }

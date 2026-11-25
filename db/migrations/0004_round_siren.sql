@@ -119,7 +119,12 @@ CREATE TABLE `incidents` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`number` text NOT NULL,
 	`report_id` text,
+	`thread_id` text,
+	`source` text DEFAULT 'seed' NOT NULL,
 	`delivery_id` integer,
+	`route_id` integer,
+	`carrier_id` integer,
+	`driver_id` integer,
 	`type` text NOT NULL,
 	`reason_text` text,
 	`cost` real,
@@ -133,13 +138,18 @@ CREATE TABLE `incidents` (
 	`created_at` text DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')) NOT NULL,
 	FOREIGN KEY (`report_id`) REFERENCES `driver_reports`(`id`) ON UPDATE no action ON DELETE no action,
 	FOREIGN KEY (`delivery_id`) REFERENCES `deliveries`(`id`) ON UPDATE no action ON DELETE no action,
-	CONSTRAINT "incidents_type_check" CHECK(type in ('damage', 'loss', 'refusal', 'redelivery', 'discrepancy', 'accident')),
+	FOREIGN KEY (`route_id`) REFERENCES `routes`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`carrier_id`) REFERENCES `carriers`(`id`) ON UPDATE no action ON DELETE no action,
+	FOREIGN KEY (`driver_id`) REFERENCES `drivers`(`id`) ON UPDATE no action ON DELETE no action,
+	CONSTRAINT "incidents_type_check" CHECK(type in ('damage', 'loss', 'refusal', 'redelivery', 'discrepancy', 'accident', 'delay')),
 	CONSTRAINT "incidents_status_check" CHECK(status in ('awaiting_transcription', 'awaiting_evidence', 'pending_review', 'registered', 'billed', 'recovered', 'lost')),
 	CONSTRAINT "incidents_payer_check" CHECK(payer is null or payer in ('insurer', 'carrier', 'shipper', 'absorbed'))
 );
 --> statement-breakpoint
 CREATE UNIQUE INDEX `incidents_number_unique` ON `incidents` (`number`);--> statement-breakpoint
+CREATE UNIQUE INDEX `incidents_thread_id_unique` ON `incidents` (`thread_id`);--> statement-breakpoint
 CREATE INDEX `incidents_listing` ON `incidents` (`occurred_at`,`type`,`status`);--> statement-breakpoint
+CREATE INDEX `incidents_dimensions` ON `incidents` (`route_id`,`carrier_id`,`driver_id`);--> statement-breakpoint
 CREATE TABLE `insurance_policies` (
 	`id` integer PRIMARY KEY AUTOINCREMENT NOT NULL,
 	`carrier_id` integer NOT NULL,

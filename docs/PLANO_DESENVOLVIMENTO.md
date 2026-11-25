@@ -5,7 +5,8 @@ Este plano cobre os serviços B1 a B18 e as telas F1 a F7. A ideia central é qu
 > Regra de ouro: **a IA extrai, o grafo decide.** O modelo nunca tem ferramenta de ação; o que ele devolve é só um JSON validado.
 
 > **Situação em 25/11, ao iniciar a execução.** A `main` já tem uma primeira versão do app (PR #1), em português: telas F1 a F6, tabela `casos`, motor de regras `lib/regras.ts` e webhook `app/api/webhook/ezworker`. Decisões do time:
-> - O **ezworker só transcreve**; a extração continua sendo feita pelo Claude no nó `extract_multimodal`.
+> - **Atualização (merge da `main` com a ingestão do WhatsApp):** o ezworker devolve a ocorrência já extraída. O grafo começa no webhook do ezworker (`from_ezworker`); a leitura pelo Claude (`extract_multimodal`) fica como segunda entrada, para relatos sem o ezworker.
+> - O grafo grava em `incidents` (base dos gráficos, com o volume de entregas) e espelha o resultado em `casos`, que as telas atuais leem.
 > - **Inglês só no código novo** (grafo, regras novas, observabilidade, PII). O código existente fica como está.
 > - As **regras são reescritas** em `lib/rules/`, e `lib/regras.ts` passa a delegar para elas (T11).
 > - A tabela de relatos se chama `driver_reports`, porque `reports` já existe como tabela de exemplo.

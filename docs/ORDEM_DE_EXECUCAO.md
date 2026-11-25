@@ -12,7 +12,7 @@ Tarefas marcadas com ✂ são as cortáveis, na ordem de corte do plano: webhook
 
 | Tarefa | Situação | Observação |
 |---|---|---|
-| T01 | Feito | Rodou no `workerd` local (mesmo runtime da Cloudflare): pausa com `interrupt()`, estado no D1, retomada em outra requisição. Falta só ver no ambiente publicado, no próximo deploy. Rota de teste: `POST /api/graph-spike` |
+| T01 | Feito | Rodou no `workerd` local (mesmo runtime da Cloudflare): pausa com `interrupt()`, estado no D1, retomada em outra requisição. Falta ver no ambiente publicado. A rota de teste foi removida |
 | T02 | Feito | `lib/ai/extraction-schema.ts` e `lib/graph/state.ts` |
 | T03 | Feito | Migração `0003`; o banco recusa tipo, status e pagador fora da lista |
 | T04 | Parcial | F1 a F6 já existem na `main`; falta só a F7 (qualidade) |
@@ -24,9 +24,13 @@ Tarefas marcadas com ✂ são as cortáveis, na ordem de corte do plano: webhook
 | T09 | Feito | `POST /api/webhooks/transcription` (exige `TRANSCRIPTION_WEBHOOK_SECRET`) e `POST /api/simulator/transcription`; não sobrescreve transcrição já recebida |
 | T10 | Feito | `lib/ai/call-model.ts` grava `model_calls`; `lib/observability/tracer.ts` grava `node_runs` |
 | T11 | Feito | Regras em `lib/rules/` com 32 testes; `npm test` no CI e no deploy. `lib/regras.ts` (código antigo) ainda não delega: fica para quando as telas usarem as tabelas novas |
-| T12 | Feito, falta teste com o modelo real | Grafo completo testado com portas falsas (3 testes) e de ponta a ponta no D1 local; sem `ANTHROPIC_API_KEY` a extração falha duas vezes e o caso vai para revisão, como previsto |
-| T13 | Feito | `GET /api/kpis` (sempre por volume de entregas) e `GET /api/incidents` |
-| T14 | Bloqueado por decisão | F1 usa base fixa em memória e F2 lista a tabela antiga `casos`; ligar às tabelas novas mexe nas telas do colega |
+| T12 | Feito | Grafo com duas entradas: ocorrência pronta do ezworker (`/api/webhook/ezworker` e o mock) e relato lido pelo Claude. Sem `ANTHROPIC_API_KEY`, a entrada pelo Claude não foi testada com o modelo real |
+| T13 | Feito e ampliado | `GET /api/kpis`, `/summary`, `/timeseries`, `/matrix`, `/filters` e `GET /api/incidents`; contrato em `docs/API.md` |
+| T14 | Resolvido de outro jeito | O grafo grava em `incidents` (gráficos) e espelha o resultado em `casos`, então F2, F3 e F5 seguem funcionando sem mudança no front |
+| T16 | Feito | Pausas de transcrição, evidência e revisão com `interrupt()`; "aprovar" e "anexar evidência" das telas atuais retomam o grafo |
+| T17 | Feito | `lib/pii.ts` (CPF com dígito verificador, telefone, placa, e-mail) e nó `mask_pii`; 16 testes |
+| T19 | Parcial | Detalhe em `GET /api/incidents/:number` com a trilha de decisões; aprovação usa a rota antiga `POST /api/ocorrencias/:id` |
+| T22 | Feito | Nó `detect_injection_signals`; teste mostra custo e pagador iguais com e sem o ataque |
 
 ---
 

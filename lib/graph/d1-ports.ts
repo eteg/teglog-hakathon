@@ -7,13 +7,14 @@ import { and, asc, eq, or } from "drizzle-orm";
 import { carriers, decisions, deliveries, driverReports, drivers, incidents, insurancePolicies, messages, routes } from "@/db/schema";
 import { callModel, markSchemaResult } from "@/lib/ai/call-model";
 import { EXTRACTION_SYSTEM, extractionContent } from "@/lib/ai/extraction";
-import { ExtractionSchema } from "@/lib/ai/extraction-schema";
+import { ExtractionSchema, minConfidence } from "@/lib/ai/extraction-schema";
 import { getDb } from "@/lib/db";
 import { ibgeCode } from "@/lib/normalization/ibge";
 import { normalizeName, onlyDigits } from "@/lib/normalization/text";
 import { DEFAULT_EXTRACTION_MODEL } from "@/lib/rules/config";
 import { getBucket } from "@/lib/storage";
 
+import { createCase, patchCase } from "./case-mirror";
 import type { IncidentPorts } from "./ports";
 import type { ReportMessage } from "./state";
 
@@ -129,6 +130,7 @@ export const d1Ports: IncidentPorts = {
     if (!row) return null;
     return {
       deliveryId: row.d.id,
+      source: "delivery_base" as const,
       invoiceNumber: row.d.invoiceNumber,
       invoiceValue: row.d.invoiceValue,
       volumes: row.d.volumes,
@@ -142,36 +144,60 @@ export const d1Ports: IncidentPorts = {
   async saveIncident(s) {
     const db = await getDb();
     const e = s.extraction!;
-    const [row] = await db
-      .insert(incidents)
-      .values({
-        number: `TMP-${crypto.randomUUID()}`,
-        reportId: s.reportId,
-        deliveryId: s.delivery?.deliveryId ?? null,
-        type: e.type,
-        reasonText: e.reason_text,
-        cost: s.cost?.cost ?? null,
-        costEstimated: s.cost?.estimated ?? true,
-        insuranceCost: s.cost?.insuranceCost ?? null,
-        payer: s.payer?.payer ?? null,
-        claimDeadline: s.payer?.claimDeadline ?? null,
-        confidence: Math.min(e.confidence.type, e.confidence.invoice_number, e.confidence.carrier),
-        status: s.status ?? "registered",
-        occurredAt: e.occurred_at ?? s.reportedAt,
-      })
-      .returning({ id: incidents.id });
-    const number = `OC-${new Date().getUTCFullYear()}-${String(row.id).padStart(6, "0")}`;
-    await db.update(incidents).set({ number }).where(eq(incidents.id, row.id));
-    return row.id;
+    const caseId = s.caseId ?? (s.source ? await createCase(s.source) : null);
+    const values = {
+      deliveryId: s.delivery?.deliveryId ?? null,
+      routeId: s.entities?.routeId ?? null,
+      carrierId: s.entities?.carrierId ?? null,
+      driverId: s.entities?.driverId ?? null,
+      type: e.type,
+      // Already masked by mask_pii; the original stays in `casos` / messages as evidence.
+      reasonText: e.reason_text,
+      cost: s.cost?.cost ?? null,
+      costEstimated: s.cost?.estimated ?? true,
+      insuranceCost: s.cost?.insuranceCost ?? null,
+      payer: s.payer?.payer ?? null,
+      claimDeadline: s.payer?.claimDeadline ?? null,
+      confidence: minConfidence(e),
+      status: s.status ?? "registered",
+    };
+
+    let incidentId = s.incidentId;
+    if (incidentId) {
+      await db.update(incidents).set(values).where(eq(incidents.id, incidentId));
+    } else {
+      const [row] = await db
+        .insert(incidents)
+        .values({
+          ...values,
+          number: caseId ?? `TMP-${crypto.randomUUID()}`,
+          threadId: s.reportId,
+          source: s.source ? "ezworker" : "claude",
+          reportId: s.source ? null : s.reportId,
+          occurredAt: e.occurred_at ?? s.reportedAt,
+        })
+        .returning({ id: incidents.id });
+      incidentId = row.id;
+      if (!caseId) {
+        const number = `OC-${new Date().getUTCFullYear()}-${String(row.id).padStart(6, "0")}`;
+        await db.update(incidents).set({ number }).where(eq(incidents.id, row.id));
+      }
+    }
+
+    if (caseId) await patchCase(caseId, s);
+    return { incidentId, caseId };
   },
 
   async saveDecisions(reportId, incidentId, list) {
     if (!list.length) return;
     const db = await getDb();
-    await db.delete(decisions).where(eq(decisions.reportId, reportId));
-    await db.insert(decisions).values(
-      list.map((d) => ({ reportId, incidentId, node: d.node, rule: d.rule, input: d.input, output: d.output, reason: d.reason, at: d.at })),
-    );
+    const rows = list.map((d) => ({ reportId, incidentId, node: d.node, rule: d.rule, input: d.input, output: d.output, reason: d.reason, at: d.at }));
+    // D1 accepts at most 100 bound parameters per statement: 8 columns × 10 rows.
+    const chunks = Array.from({ length: Math.ceil(rows.length / 10) }, (_, i) => rows.slice(i * 10, i * 10 + 10));
+    await db.batch([
+      db.delete(decisions).where(eq(decisions.reportId, reportId)),
+      ...chunks.map((chunk) => db.insert(decisions).values(chunk)),
+    ]);
   },
 
   async setReportStatus(reportId, status) {

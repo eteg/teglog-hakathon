@@ -69,5 +69,7 @@ export function calculateCost(
           );
     case "accident":
       return done(delivery.invoiceValue, "COST_ACCIDENT", "Acidente: valor total da NF.");
+    case "delay":
+      return done(0, "COST_DELAY", "Atraso: sem custo direto calculado; entra no indicador de ocorrências.");
   }
 }

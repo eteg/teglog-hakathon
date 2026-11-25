@@ -46,7 +46,7 @@ export function decidePayer(input: PayerInput): RuleResult<PayerDecision> {
     );
   }
 
-  if (extraction.type === "refusal" || extraction.type === "redelivery") {
+  if (extraction.type === "refusal" || extraction.type === "redelivery" || extraction.type === "delay") {
     return decide("carrier", "DELIVERY_FAILURE", "Falha de entrega: custo atribuído à transportadora pelo contrato.");
   }
 

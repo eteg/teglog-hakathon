@@ -1,4 +1,5 @@
 import { CAMPOS_REVISAVEIS } from "@/lib/regras";
+import { resumeReviewFromCase } from "@/lib/graph/case-review";
 import { atualizarStatus, obter, revisarCampo } from "@/lib/store";
 import type { CampoRevisavel } from "@/lib/types";
 
@@ -22,7 +23,11 @@ export async function POST(req: Request, ctx: RouteContext<"/api/ocorrencias/[id
 
   let novo;
   if (acao === "aprovar") {
-    novo = await atualizarStatus(id, "aprovado", "Cliente aprovou a tratativa", c.decisao.motivo);
+    // The paused decision graph resumes with the fields as the analyst left them;
+    // it recalculates cost and payer before the approval is recorded.
+    await resumeReviewFromCase(id, "Analista");
+    const atual = (await obter(id)) ?? c;
+    novo = await atualizarStatus(id, "aprovado", "Cliente aprovou a tratativa", atual.decisao.motivo);
   } else if (acao === "responder") {
     if (!mensagem?.trim()) return Response.json({ erro: "mensagem vazia" }, { status: 400 });
     // TODO: devolver a resposta à transportadora (webhook de saída / ezworker)
