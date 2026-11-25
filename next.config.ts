@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   turbopack: {
     rules: {
       "*.css": {
+        // Só CSS do projeto: sem isso o loader também processa o CSS interno do
+        // next/font e quebra a URL da fonte (@vercel/turbopack-next/internal/font).
+        condition: { not: "foreign" },
         loaders: ["@tailwindcss/turbopack"],
         as: "*.css",
       },

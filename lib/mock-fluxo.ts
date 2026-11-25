@@ -5,8 +5,9 @@ import 'server-only'
 
 import { FOTO_DEMO_AVARIA_JPEG_BASE64 } from './demo-midia'
 import { CENARIOS, escolherCenario, type EntradaMock } from './mock-ezworker'
+import { runIncidentFromEzworker } from './graph/run'
 import { localNaRota } from './rotas'
-import { receber } from './store'
+import { obter } from './store'
 import type { Canal, OcorrenciaEzworker } from './types'
 import { validarOcorrencia } from './validar'
 
@@ -42,7 +43,10 @@ export async function simularEzworker(
   if (entrada.entregar !== false) {
     const v = validarOcorrencia(ocorrencia)
     if (!v.ok) throw new Error(`mock gerou JSON fora do contrato: ${v.erros.join(', ')}`)
-    const caso = await receber(v.dado)
+    // Same path as the real webhook: the decision graph, then the case mirrored in `casos`.
+    const run = await runIncidentFromEzworker(v.dado)
+    const caso = run.state.caseId ? await obter(run.state.caseId) : undefined
+    if (!caso) throw new Error('o grafo não gerou o caso')
     entregue = { id: caso.id, status: caso.status, pagador: caso.decisao.pagador }
   }
 

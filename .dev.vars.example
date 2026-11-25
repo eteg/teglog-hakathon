@@ -7,3 +7,5 @@ WHATSAPP_ACCESS_TOKEN=changeme
 COOLDOWN_SECONDS=5
 APP_URL=http://localhost:3000
 INTERNAL_SECRET=changeme
+# Token only for agents (MCP server, manager questions): opens /api/read/* and nothing else.
+READ_API_TOKEN=changeme-read
